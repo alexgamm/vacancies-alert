@@ -1,0 +1,19 @@
+services:
+  vacancies-alert:
+    image: ghcr.io/alexgamm/vacancies-alert/vacancies-alert:latest
+    restart: unless-stopped
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "10710:8080"
+
+# gradle build
+# docker build . -t ghcr.io/alexgamm/vacancies-alert/vacancies-alert:latest
+# docker push ghcr.io/alexgamm/vacancies-alert/vacancies-alert:latest
+# set DOCKER_HOST=ssh://sasha@94.131.100.169 (IN CMD!)
+# docker compose pull
+# docker compose up -d (should respond "Recreated")
+
+# docker ps
+# docker logs -f -n 100 vacancies-alert-vacancies-alert-1
