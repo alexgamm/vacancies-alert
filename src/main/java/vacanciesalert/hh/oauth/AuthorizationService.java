@@ -1,5 +1,7 @@
 package vacanciesalert.hh.oauth;
 
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.core.UriBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +12,7 @@ import vacanciesalert.hh.oauth.model.UserTokens;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.utils.EncryptionConverter;
 
+import java.net.URI;
 import java.time.Instant;
 
 @Service
@@ -23,6 +26,8 @@ public class AuthorizationService {
 
     private final WebClient webClient;
 
+    private final static String REDIRECT_URL = "https://hh.ru/oauth/authorize";
+
     @Value("${hh.client.id}")
     private String clientId;
 
@@ -31,6 +36,15 @@ public class AuthorizationService {
 
     @Value("${hh.redirect.uri}")
     private String redirectUri;
+
+    public URI createAuthUri(String chatId) {
+        return UriBuilder.fromUri(REDIRECT_URL)
+                .queryParam("response_type", "code")
+                .queryParam("client_id", clientId)
+                .queryParam("redirect_uri", redirectUri)
+                .queryParam("state", chatId)
+                .build();
+    }
 
     public UserTokens getOrRefreshTokens(String valueToExchange, boolean refresh) {
         String tokenType = refresh ? "refresh_token" : "code";
@@ -49,7 +63,7 @@ public class AuthorizationService {
         return new UserTokens(
                 response.getAccessToken(),
                 response.getRefreshToken(),
-                Instant.now().plusMillis(response.getExpiresIn()));
+                Instant.now().plusSeconds(response.getExpiresIn()));
     }
 
     public UserTokens encryptTokens(UserTokens userTokens) {
@@ -64,6 +78,7 @@ public class AuthorizationService {
         return encryptionConverter.convertToEntityAttribute(token);
     }
 
+    @Transactional
     public void updateTokens(Long chatId, UserTokens tokens) {
         userInfoRepository.updateTokensByChatId(
                 chatId,
@@ -71,5 +86,9 @@ public class AuthorizationService {
                 tokens.refreshToken(),
                 tokens.accessTokenExpiration()
         );
+    }
+
+    public boolean isExpired(Long chatId) {
+        return Instant.now().isAfter(userInfoRepository.findUserInfoByChatId(chatId).getExpiredAt());
     }
 }

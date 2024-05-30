@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import vacanciesalert.hh.oauth.AuthorizationService;
+import vacanciesalert.hh.oauth.model.UserTokens;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.model.hhSearchResponse.Vacancy;
 import vacanciesalert.repository.UserInfoRepository;
@@ -29,6 +30,17 @@ public class SearchSchedulerService {
         // TODO remove identical vacancies based on id
         log.info("scheduled task begins. Time: {}", Instant.now());
         List<UserInfo> allUsers = userInfoRepository.findAll();
+        for (UserInfo user : allUsers) {
+            if (authorizationService.isExpired(user.getChatId())) {
+                UserTokens tokens = authorizationService.getOrRefreshTokens(
+                        authorizationService.decodeToken(user.getRefreshToken()),
+                        true
+                );
+                tokens = authorizationService.encryptTokens(tokens);
+                authorizationService.updateTokens(user.getChatId(), tokens);
+            }
+        }
+        allUsers = userInfoRepository.findAll();
         for (UserInfo user : allUsers) {
             if (user.getTags() == null) {
                 continue;

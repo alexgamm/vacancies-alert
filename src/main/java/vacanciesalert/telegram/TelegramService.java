@@ -1,34 +1,37 @@
 package vacanciesalert.telegram;
 
-import jakarta.ws.rs.core.UriBuilder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import vacanciesalert.model.entity.UserInfo;
+import vacanciesalert.repository.UserInfoRepository;
+import vacanciesalert.telegram.model.ButtonActionTypes;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TelegramService {
-    private final static String REDIRECT_URL = "https://hh.ru/oauth/authorize";
+
+    private final UserInfoRepository userInfoRepository;
 
     private final WebClient webClient;
 
     @Value("${tg.bot.token}")
     private String token;
-
-    @Value("${hh.client.id}")
-    private String clientId;
-
-    @Value("${hh.redirect.uri}")
-    private String redirectUri;
 
 
     private void sendTgMessage(SendMessage message) {
@@ -42,21 +45,30 @@ public class TelegramService {
                 .block();
     }
 
-    public void sendButtonMessage(String chatId) {
+    public void sendButtonMessage(
+            String chatId,
+            String messageText,
+            Map<String, URI> buttons,
+            String buttonActionType
+    ) {
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        InlineKeyboardButton button = new InlineKeyboardButton();
-        button.setText("Авторизация на hh");
-        URI uri = UriBuilder.fromUri(REDIRECT_URL)
-                .queryParam("response_type", "code")
-                .queryParam("client_id", clientId)
-                .queryParam("redirect_uri", redirectUri)
-                .queryParam("state", chatId)
-                .build();
-        button.setUrl(uri.toString());
-        inlineKeyboardMarkup.setKeyboard(List.of(List.of(button)));
+        List<List<InlineKeyboardButton>> keyboardRows = new ArrayList<>();
+
+        for (String buttonText : buttons.keySet()) {
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(buttonText);
+            List<String> anotherButtons = buttons.keySet().stream().filter(buttonValue -> !buttonValue.equals(buttonText)).toList();
+            String callbackData = buttonActionType + " ; " + buttonText + " . " + String.join(", ", anotherButtons);
+            button.setCallbackData(callbackData);
+            if (buttons.get(buttonText) != null) {
+                button.setUrl(buttons.get(buttonText).toString());
+            }
+            keyboardRows.add(List.of(button));
+        }
+        inlineKeyboardMarkup.setKeyboard(keyboardRows);
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Чтобы искать вакансии для вас, необходимо перейти по кнопке ниже");
+        message.setText(messageText);
         message.setReplyMarkup(inlineKeyboardMarkup);
         sendTgMessage(message);
     }
@@ -66,6 +78,55 @@ public class TelegramService {
         message.setChatId(chatId);
         message.setText(messageText);
         sendTgMessage(message);
+    }
+
+    public void editMessage(Long chatId, Integer messageId, String tagToHighlight, ButtonActionTypes buttonActionType) {
+        EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
+        editMessageReplyMarkup.setChatId(String.valueOf(chatId));
+        editMessageReplyMarkup.setMessageId(messageId);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> keyboardRows = new ArrayList<>();
+
+        UserInfo userInfo = userInfoRepository.findById(chatId).orElseThrow();
+        List<String> tagWithTick = Arrays.stream(tagToHighlight.split(" ")).toList();
+        String pureTag = tagWithTick.get(tagWithTick.size() - 1);
+        List<String> tags = userInfo.getTags().stream()
+                .map(tag -> {
+                    log.info(tag);
+                    if (tag.equals(pureTag)) {
+                        if (tagWithTick.get(0).equals("✓")) {
+                            return pureTag;
+                        } else {
+                            return "✓ " + tag;
+                        }
+                    } else {
+                        return tag;
+                    }
+                })
+                .toList();
+
+        for (String tag : tags) {
+            log.info(tag);
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(tag);
+            button.setCallbackData(buttonActionType + " ; " + tag);
+            keyboardRows.add(List.of(button));
+        }
+
+        inlineKeyboardMarkup.setKeyboard(keyboardRows);
+        editMessageReplyMarkup.setChatId(chatId);
+        editMessageReplyMarkup.setMessageId(messageId);
+        editMessageReplyMarkup.setReplyMarkup(inlineKeyboardMarkup);
+
+        webClient.post()
+                .uri("https://api.telegram.org/bot" + token + "/editMessageReplyMarkup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(editMessageReplyMarkup)
+                .retrieve()
+                .toBodilessEntity()
+                .block();
+
     }
 
 }

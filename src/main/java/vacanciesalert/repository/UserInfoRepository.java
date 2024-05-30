@@ -3,6 +3,7 @@ package vacanciesalert.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vacanciesalert.model.entity.UserInfo;
 
@@ -16,7 +17,7 @@ public interface UserInfoRepository extends JpaRepository<UserInfo, Long> {
 
     @Modifying
     @Query("DELETE FROM UserInfo u WHERE u.chatId = :chatId")
-    void deleteUserByChatId(Long chatId);
+    void deleteUserById(Long chatId);
 
     @Modifying
     @Query("UPDATE UserInfo u SET u.accessToken = :accessToken, u.refreshToken = :refreshToken, u.expiredAt = :expiredAt WHERE u.chatId = :chatId")

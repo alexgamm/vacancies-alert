@@ -7,7 +7,7 @@ public enum UserTelegramCommands {
 
     START("/start"),
     SET_TAGS("/settags"),
-    SHOW_TAGS("/showtags"),
+    SHOW_TAGS("/mytags"),
     REMOVE_TAGS("/removetags"),
     STOP_BOT("/stop");
 

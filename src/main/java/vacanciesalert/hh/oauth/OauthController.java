@@ -2,6 +2,7 @@ package vacanciesalert.hh.oauth;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +17,7 @@ import java.time.Instant;
 @Controller
 @RequestMapping("/oauth/hh")
 @RequiredArgsConstructor
+@Slf4j
 public class OauthController {
 
     private final UserInfoRepository userInfoRepository;
@@ -27,13 +29,14 @@ public class OauthController {
     public String processAuthorization(@RequestParam("code") String code, @RequestParam("state") String chatId) {
         // TODO if state is null
         try {
+            log.info("Processing authorization code {}", code);
             UserInfo userInfo = userInfoRepository.findUserInfoByChatId(Long.parseLong(chatId));
             UserTokens userTokens;
-            if (userInfo == null) {
+            if (userInfo.getAccessToken() == null) {
                 userTokens = authorizationService.getOrRefreshTokens(code, false);
                 UserTokens encryptedTokens = authorizationService.encryptTokens(userTokens);
                 userInfo = new UserInfo(
-                        Long.parseLong(chatId),
+                        userInfo.getChatId(),
                         encryptedTokens.accessToken(),
                         encryptedTokens.refreshToken(),
                         userTokens.accessTokenExpiration(),
@@ -41,12 +44,6 @@ public class OauthController {
                         null
                 );
                 userInfoRepository.save(userInfo);
-            } else if (userInfo.getExpiredAt().isBefore(Instant.now())) {
-                userTokens = authorizationService.getOrRefreshTokens(
-                        authorizationService.decodeToken(userInfo.getRefreshToken()),
-                        true
-                );
-                authorizationService.updateTokens(Long.parseLong(chatId), authorizationService.encryptTokens(userTokens));
             } else {
                 // TODO отправить сообщение с доступными тэгами
                 telegramService.sendTextMessage(chatId, "Вы уже авторизованы. Продолжайте использовать наш телеграм-бот");
@@ -54,9 +51,9 @@ public class OauthController {
         } catch (Throwable throwable) {
             return "failure-hh-oauth";
         }
-        telegramService.sendTextMessage(chatId, "Поздравляем с успешной авторизацией! Последнее, " +
-                "что необходимо сделать - ввести теги для поиска необходимых вакансий. \nФормат сообщения: " +
-                "/tags \"преподаватель английского языка\", \"junior logistics manager\"");
+        telegramService.sendTextMessage(chatId, "Поздравляю с успешной авторизацией! Последнее, " +
+                "что необходимо сделать, чтобы получать уведомления о вакансиях - ввести теги для поиска " +
+                "необходимых вакансий. \n/settags - нажми чтобы установить теги для поиска");
         return "success-hh-oauth";
     }
 }
