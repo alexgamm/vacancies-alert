@@ -7,11 +7,10 @@ import vacanciesalert.hh.oauth.AuthorizationService;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
+import vacanciesalert.telegram.tags.ButtonActionType;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 @RequiredArgsConstructor
 @Component
@@ -32,29 +31,28 @@ public class ShowTagsCommand implements UserCommand {
         UserInfo userInfo = userInfoRepository.findById(chatId).orElse(null);
         if (userInfo == null) {
             //TODO add exception
-        } else if (userInfo.getAccessToken() == null) {
+        } else if (userInfo.getAccessToken() == null && (userInfo.getTags() == null || userInfo.getTags().isEmpty())) {
             telegramService.sendTextMessage(
-                    chatId.toString(),
+                    chatId,
                     "На данный момент у вас нет установленных тегов.\n" +
                             "Также для поиска вакансий на hh вам необходимо пройти авторизацию"
             );
-            Map<String, URI> buttons = new HashMap<>();
+            Map<String, String> buttons = new HashMap<>(); // VacancyTagText key and uri value
             String buttonText = "Авторизация на hh";
             buttons.put(buttonText, authorizationService.createAuthUri(chatId.toString()));
-            telegramService.sendButtonMessage(
-                    update.getMessage().getChatId().toString(),
+            telegramService.sendAuthButtonMessage(
+                    chatId,
                     "Чтобы искать вакансии для вас, необходимо перейти по кнопке ниже",
-                    buttons,
-                    ButtonActionTypes.AUTHORIZE_HH.toString()
+                    buttons
             );
-        } else if (userInfo.getTags() == null) {
+        } else if (userInfo.getTags() == null || userInfo.getTags().isEmpty()) {
             telegramService.sendTextMessage(
-                    chatId.toString(),
+                    chatId,
                     "На данный момент у вас нет установленных тегов."
             );
         } else {
             telegramService.sendTextMessage(
-                    chatId.toString(),
+                    chatId,
                     "Ваши теги для поиска вакансий на hh:\n" +
                             String.join(", ", userInfo.getTags())
             );

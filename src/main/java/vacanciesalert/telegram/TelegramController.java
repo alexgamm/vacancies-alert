@@ -6,17 +6,23 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.telegram.telegrambots.meta.api.objects.ChatMemberUpdated;
-import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
-import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
-import vacanciesalert.hh.oauth.AuthorizationService;
 import vacanciesalert.repository.UserInfoRepository;
-import vacanciesalert.telegram.model.*;
+import vacanciesalert.telegram.model.UserCommand;
+import vacanciesalert.telegram.tags.ButtonActionType;
+import vacanciesalert.telegram.update.CallbackHandler;
+import vacanciesalert.telegram.update.CallbackParser;
+import vacanciesalert.telegram.update.NextTagsCallbackHandler;
+import vacanciesalert.telegram.update.PrevTagsCallbackHandler;
+import vacanciesalert.telegram.update.RemoveTagCallbackHandler;
+import vacanciesalert.telegram.update.SelectTagCallbackHandler;
+import vacanciesalert.telegram.update.UpdateHandler;
+import vacanciesalert.telegram.update.UpdateType;
+import vacanciesalert.telegram.update.model.MultiselectCallbackDataModel;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -26,33 +32,34 @@ public class TelegramController {
     private final UserInfoRepository userInfoRepository;
     private final TelegramService telegramService;
     private final List<UserCommand> userCommands;
+    private final Map<ButtonActionType, CallbackHandler> callbackHandlers;
 
     public TelegramController(
             UserInfoRepository userInfoRepository,
             TelegramService telegramService,
-            AuthorizationService authorizationService
+            List<UserCommand> userCommands,
+            NextTagsCallbackHandler nextTagsCallbackHandler,
+            PrevTagsCallbackHandler prevTagsCallbackHandler,
+            RemoveTagCallbackHandler removeCallbackHandler,
+            SelectTagCallbackHandler selectTagCallbackHandler
     ) {
         this.userInfoRepository = userInfoRepository;
         this.telegramService = telegramService;
-        this.userCommands = List.of(
-                new StartBotCommand(telegramService, userInfoRepository, authorizationService),
-                new SetTagsCommand(telegramService, userInfoRepository),
-                new StopBotCommand(telegramService, userInfoRepository),
-                new ShowTagsCommand(telegramService, userInfoRepository, authorizationService),
-                new RemoveTagsCommand(telegramService, userInfoRepository)
+        this.userCommands = userCommands;
+        this.callbackHandlers = Map.of(
+                ButtonActionType.NEXT_TAGS_PAGE, nextTagsCallbackHandler,
+                ButtonActionType.PREV_TAGS_PAGE, prevTagsCallbackHandler,
+                ButtonActionType.REMOVE_SELECTED_TAGS, removeCallbackHandler,
+                ButtonActionType.TOGGLE_TAG, selectTagCallbackHandler
         );
     }
 
     @PostMapping("/webhook")
     @Transactional
     public void handleUpdate(@RequestBody Update update) {
-        log.info("update:{}", update);
-        String chatId = Optional.ofNullable(update.getMessage())
-                .map(Message::getChatId)
-                .map(String::valueOf)
-                .orElse(null);
-        log.info("chatId:{}", chatId);
-        if (chatId != null) {
+        UpdateType updateType = UpdateHandler.handleUpdate(update);
+
+        if (updateType == UpdateType.USER_COMMAND) {
             for (UserCommand userCommand : userCommands) {
                 if (userCommand.isRelevant(update.getMessage().getChatId(), update.getMessage().getText())) {
                     userCommand.execute(update);
@@ -60,25 +67,23 @@ public class TelegramController {
                 }
             }
         }
-        if (update.hasCallbackQuery()) {
-            List<String> queryData = Arrays.stream(update.getCallbackQuery().getData().split(";")).map(String::trim).toList();
-            if (ButtonActionTypes.REMOVE_TAG.toString().equals(queryData.get(0))) {
-                String tag = queryData.get(1);
-                log.info("Chosen tag: {}", tag);
-                telegramService.editMessage(
-                        update.getCallbackQuery().getMessage().getChatId(),
-                        update.getCallbackQuery().getMessage().getMessageId(),
-                        tag,
-                        ButtonActionTypes.REMOVE_TAG
-                );
+        if (updateType == UpdateType.CALLBACK) {
+            MultiselectCallbackDataModel multiselectCallbackDataModel = CallbackParser.parseCallbackData(
+                    update,
+                    telegramService.getTagSelectionState()
+                            .get(update.getCallbackQuery().getMessage().getMessageId())
+                            .getTagsOnTheCurrentPage()
+            );
+            ButtonActionType buttonActionType = multiselectCallbackDataModel.getButtonActionType();
+            CallbackHandler callbackHandler = callbackHandlers.get(buttonActionType);
+            if (callbackHandler == null) {
+                log.error("No relevant callback handler for button action type {}", buttonActionType);
                 return;
             }
+            callbackHandler.handleCallback(update, multiselectCallbackDataModel);
+            return;
         }
-        String newChatMemberStatus = Optional.ofNullable(update.getMyChatMember())
-                .map(ChatMemberUpdated::getNewChatMember)
-                .map(ChatMember::getStatus)
-                .orElse(null);
-        if ("kicked".equals(newChatMemberStatus)) {
+        if (updateType == UpdateType.USER_BOT_BLOCK) {
             Long id = Optional.ofNullable(update.getMyChatMember().getFrom()).map(User::getId).orElse(0L);
             if (id == 0L) {
                 log.error("Could not delete user info: chatId in telegram incoming update not found");
@@ -87,16 +92,15 @@ public class TelegramController {
             userInfoRepository.deleteUserById(id);
             return;
         }
-        if (chatId != null) {
-            telegramService.sendTextMessage(update.getMessage().getChatId().toString(),
-                    "Я не понимаю о чем вы говорите. Попробуйте одну из поддерживаемых команд:\n" +
-                            "/start - начать использование бота, заново авторизоваться на hh;\n" +
-                            "/stop - прекратить происк свежих вакансий и остановить рассылку;\n" +
-                            "/settags - удалить старые и задать новые теги;\n" +
-                            "/mytags - посмотреть заданные теги, по которым осуществляется поиск вакансий;\n" +
-                            "/removetags - удалить теги");
-
-        }
+        telegramService.sendTextMessage(
+                update.getMessage().getChatId(),
+                "Я не понимаю о чем вы говорите. Попробуйте одну из поддерживаемых команд:\n" +
+                        "/start - начать использование бота, заново авторизоваться на hh;\n" +
+                        "/stop - прекратить происк свежих вакансий и остановить рассылку;\n" +
+                        "/settags - удалить старые и задать новые теги;\n" +
+                        "/mytags - посмотреть заданные теги, по которым осуществляется поиск вакансий;\n" +
+                        "/removetags - удалить теги"
+        );
     }
 }
 

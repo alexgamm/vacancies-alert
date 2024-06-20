@@ -9,6 +9,8 @@ public enum UserTelegramCommands {
     SET_TAGS("/settags"),
     SHOW_TAGS("/mytags"),
     REMOVE_TAGS("/removetags"),
+    SET_SALARY_RANGE("/setsalary"),
+    SHOW_SALARY_RANGE("/mysalaryrange"),
     STOP_BOT("/stop");
 
     private final String command;

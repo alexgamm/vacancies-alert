@@ -1,132 +1,172 @@
 package vacanciesalert.telegram;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.telegram.telegrambots.meta.api.methods.botapimethods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import vacanciesalert.model.entity.UserInfo;
-import vacanciesalert.repository.UserInfoRepository;
-import vacanciesalert.telegram.model.ButtonActionTypes;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.generics.TelegramClient;
+import vacanciesalert.telegram.tags.ButtonActionType;
+import vacanciesalert.telegram.update.model.MultiselectTagsCursor;
 
-import java.net.URI;
+import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Getter
 @Slf4j
 public class TelegramService {
 
-    private final UserInfoRepository userInfoRepository;
-
-    private final WebClient webClient;
+    private final TelegramClient telegramClient;
+    private final Map<Integer, MultiselectTagsCursor> tagSelectionState = new HashMap<>(); // TODO For every chat
 
     @Value("${tg.bot.token}")
     private String token;
 
-
-    private void sendTgMessage(SendMessage message) {
-        String url = String.format("https://api.telegram.org/bot%s/sendMessage", token);
-        webClient.post()
-                .uri(url)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(message))
-                .retrieve()
-                .toBodilessEntity()
-                .block();
+    private void execute(BotApiMethod<? extends Serializable> method) {
+        try {
+            telegramClient.execute(method);
+        } catch (TelegramApiException e) {
+            log.error("Telegram API error", e);
+            throw new RuntimeException(e);
+        }
     }
 
-    public void sendButtonMessage(
-            String chatId,
-            String messageText,
-            Map<String, URI> buttons,
-            String buttonActionType
-    ) {
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> keyboardRows = new ArrayList<>();
+    public void deleteTgMessage(Long chatId, Integer messageId) {
+        DeleteMessage deleteMessage = DeleteMessage.builder()
+                .messageId(messageId)
+                .chatId(chatId)
+                .build();
+        execute(deleteMessage);
+    }
 
+    public void sendAuthButtonMessage(Long chatId, String messageText, Map<String, String> buttons) {
+        List<InlineKeyboardButton> buttonsText = new ArrayList<>();
         for (String buttonText : buttons.keySet()) {
-            InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText(buttonText);
-            List<String> anotherButtons = buttons.keySet().stream().filter(buttonValue -> !buttonValue.equals(buttonText)).toList();
-            String callbackData = buttonActionType + " ; " + buttonText + " . " + String.join(", ", anotherButtons);
-            button.setCallbackData(callbackData);
-            if (buttons.get(buttonText) != null) {
-                button.setUrl(buttons.get(buttonText).toString());
+            buttonsText.add(
+                    InlineKeyboardButton.builder()
+                            .text(buttonText)
+                            .url(buttons.get(buttonText)).build()
+            );
+        }
+        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                .keyboard(buttonsText.stream().map(InlineKeyboardRow::new).toList())
+                .build();
+        SendMessage message = SendMessage.builder()
+                .chatId(chatId)
+                .text(messageText)
+                .replyMarkup(markup)
+                .build();
+        execute(message);
+    }
+
+
+    public void sendRemoveTagsMessage(
+            Long chatId,
+            String messageText,
+            Set<String> tags
+    ) {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
+        MultiselectTagsCursor multiselectTagsCursor = new MultiselectTagsCursor(tags);
+        for (Integer tagIdx : multiselectTagsCursor.getTagsOnTheCurrentPage().keySet()) {
+            String callbackData = ButtonActionType.TOGGLE_TAG + " ; " + tagIdx;
+            log.info("Initial button callback: {}", callbackData);
+            buttons.add(
+                    InlineKeyboardButton.builder()
+                            .text(multiselectTagsCursor.getTagsOnTheCurrentPage().get(tagIdx))
+                            .callbackData(callbackData)
+                            .build()
+            );
+        }
+        if (tags.size() > MultiselectTagsCursor.TAGS_PAGE_SIZE) {
+            buttons.add(createButton(ButtonActionType.NEXT_TAGS_PAGE, "->"));
+        }
+
+        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                .keyboard(buttons.stream().map(InlineKeyboardRow::new).toList())
+                .build();
+        SendMessage message = SendMessage.builder().chatId(chatId).text(messageText).replyMarkup(markup).build();
+
+        Message resultSendMessage;
+        try {
+            resultSendMessage = telegramClient.execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Telegram API error", e);
+            throw new RuntimeException(e);
+        }
+        tagSelectionState.put(resultSendMessage.getMessageId(), multiselectTagsCursor);
+    }
+
+    public void sendTextMessage(Long chatId, String messageText) {
+        SendMessage message = SendMessage.builder()
+                .chatId(chatId)
+                .text(messageText)
+                .build();
+        execute(message);
+    }
+
+    public void editMessage(Long chatId, Integer messageId, MultiselectTagsCursor cursor) {
+        List<InlineKeyboardRow> rows = new ArrayList<>();
+        Map<Integer, String> tags = cursor.getTagsOnTheCurrentPage();
+        for (Integer tagIdx : tags.keySet()) {
+            String tag = tags.get(tagIdx);
+            if (cursor.isSelected(tag)) {
+                tag = "✓ " + tag;
             }
-            keyboardRows.add(List.of(button));
+            InlineKeyboardButton button = InlineKeyboardButton.builder()
+                    .text(tag)
+                    .callbackData(ButtonActionType.TOGGLE_TAG + " ; " + tagIdx)
+                    .build();
+            rows.add(new InlineKeyboardRow(button));
         }
-        inlineKeyboardMarkup.setKeyboard(keyboardRows);
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(messageText);
-        message.setReplyMarkup(inlineKeyboardMarkup);
-        sendTgMessage(message);
+        List<InlineKeyboardButton> paginationButtons = new ArrayList<>();
+        if (cursor.hasPrevTags()) {
+            paginationButtons.add(createButton(ButtonActionType.PREV_TAGS_PAGE, "⬅"));
+        }
+        if (cursor.hasNextTags()) {
+            paginationButtons.add(createButton(ButtonActionType.NEXT_TAGS_PAGE, "➡"));
+        }
+        if (!paginationButtons.isEmpty()) {
+            rows.add(new InlineKeyboardRow(paginationButtons));
+        }
+        int selectedTagCount = cursor.selectedTagCount();
+        if (selectedTagCount > 0) {
+            rows.add(new InlineKeyboardRow(createButton(
+                    ButtonActionType.REMOVE_SELECTED_TAGS,
+                    String.format("Удалить выбранные теги %d", selectedTagCount)
+            )));
+        }
+        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                .keyboard(rows.stream().map(InlineKeyboardRow::new).toList())
+                .build();
+        execute(
+                EditMessageReplyMarkup.builder()
+                        .replyMarkup(markup)
+                        .chatId(chatId)
+                        .messageId(messageId)
+                        .build()
+        );
     }
 
-    public void sendTextMessage(String chatId, String messageText) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(messageText);
-        sendTgMessage(message);
-    }
-
-    public void editMessage(Long chatId, Integer messageId, String tagToHighlight, ButtonActionTypes buttonActionType) {
-        EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
-        editMessageReplyMarkup.setChatId(String.valueOf(chatId));
-        editMessageReplyMarkup.setMessageId(messageId);
-
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> keyboardRows = new ArrayList<>();
-
-        UserInfo userInfo = userInfoRepository.findById(chatId).orElseThrow();
-        List<String> tagWithTick = Arrays.stream(tagToHighlight.split(" ")).toList();
-        String pureTag = tagWithTick.get(tagWithTick.size() - 1);
-        List<String> tags = userInfo.getTags().stream()
-                .map(tag -> {
-                    log.info(tag);
-                    if (tag.equals(pureTag)) {
-                        if (tagWithTick.get(0).equals("✓")) {
-                            return pureTag;
-                        } else {
-                            return "✓ " + tag;
-                        }
-                    } else {
-                        return tag;
-                    }
-                })
-                .toList();
-
-        for (String tag : tags) {
-            log.info(tag);
-            InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText(tag);
-            button.setCallbackData(buttonActionType + " ; " + tag);
-            keyboardRows.add(List.of(button));
-        }
-
-        inlineKeyboardMarkup.setKeyboard(keyboardRows);
-        editMessageReplyMarkup.setChatId(chatId);
-        editMessageReplyMarkup.setMessageId(messageId);
-        editMessageReplyMarkup.setReplyMarkup(inlineKeyboardMarkup);
-
-        webClient.post()
-                .uri("https://api.telegram.org/bot" + token + "/editMessageReplyMarkup")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(editMessageReplyMarkup)
-                .retrieve()
-                .toBodilessEntity()
-                .block();
-
+    private InlineKeyboardButton createButton(ButtonActionType buttonActionType, String buttonText) {
+        return InlineKeyboardButton.builder()
+                .text(buttonText)
+                .callbackData(buttonActionType.toString())
+                .build();
     }
 
 }

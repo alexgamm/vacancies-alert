@@ -8,10 +8,8 @@ import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 @RequiredArgsConstructor
 @Component
@@ -28,23 +26,15 @@ public class StartBotCommand implements UserCommand {
     @Override
     public void execute(Update update) {
         Long chatId = update.getMessage().getChatId();
-        UserInfo userInfo = new UserInfo(
-                chatId,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+        UserInfo userInfo = new UserInfo().setChatId(chatId).setShowHiddenSalaryVacancies(true);
         userInfoRepository.save(userInfo);
-        Map<String, URI> buttons = new HashMap<>();
+        Map<String, String> buttons = new HashMap<>();
         String buttonText = "Авторизация на hh";
         buttons.put(buttonText, authorizationService.createAuthUri(chatId.toString()));
-        telegramService.sendButtonMessage(
-                chatId.toString(),
+        telegramService.sendAuthButtonMessage(
+                chatId,
                 "Чтобы искать вакансии для вас, необходимо перейти по кнопке ниже",
-                buttons,
-                ButtonActionTypes.AUTHORIZE_HH.toString()
+                buttons
         );
     }
 }

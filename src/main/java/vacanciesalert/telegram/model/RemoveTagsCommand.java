@@ -6,6 +6,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
+import vacanciesalert.telegram.tags.ButtonActionType;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -29,24 +30,17 @@ public class RemoveTagsCommand implements UserCommand {
         UserInfo userInfo = userInfoRepository.findById(chatId).orElse(null);
         if (userInfo == null) {
             //TODO add exception
-        } else if (userInfo.getTags() == null) {
+        } else if (userInfo.getTags() == null || userInfo.getTags().isEmpty()) {
             telegramService.sendTextMessage(
-                    chatId.toString(),
+                    update.getCallbackQuery().getMessage().getChatId(),
                     "На данный момент у вас нет установленных тегов."
             );
         } else {
-            Map<String, URI> buttons = new HashMap<>();
-            for (String tag : userInfo.getTags()) {
-                buttons.put(tag, null);
-            }
-            telegramService.sendButtonMessage(
-                    chatId.toString(),
+            telegramService.sendRemoveTagsMessage(
+                    chatId,
                     "Выберите теги, которые хотите удалить:",
-                    buttons,
-                    ButtonActionTypes.REMOVE_TAG.toString()
+                    userInfo.getTags()
             );
         }
-
-
     }
 }

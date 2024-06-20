@@ -10,6 +10,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -19,6 +21,8 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Accessors(chain = true)
+@Setter
 @Table(name = "user_info")
 @Getter
 public class UserInfo {
@@ -26,13 +30,13 @@ public class UserInfo {
     @Id
     @Column(name = "chat_id")
     private Long chatId;
-    @NotNull
+    @Nullable
     @Column(name = "access_token")
     private String accessToken;
-    @NotNull
+    @Nullable
     @Column(name = "refresh_token")
     private String refreshToken;
-    @NotNull
+    @Nullable
     @Column(name = "expired_at")
     private Instant expiredAt;
     @Nullable
@@ -41,5 +45,12 @@ public class UserInfo {
     @Nullable
     @Column(name = "search_vacancies_from")
     private Instant searchVacanciesFrom;
+    @Column(name = "salary_from")
+    private Integer salaryFrom;
+    @Nullable
+    @Column(name = "salary_to")
+    private Integer salaryTo;
+    @Column(name = "show_hidden_salary_vacancies")
+    private boolean showHiddenSalaryVacancies;
 }
 

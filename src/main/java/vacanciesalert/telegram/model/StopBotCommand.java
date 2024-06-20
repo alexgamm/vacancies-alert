@@ -18,7 +18,7 @@ public class StopBotCommand implements UserCommand{
     @Override
     public void execute(Update update) {
         userInfoRepository.deleteUserById(update.getMessage().getChatId());
-        telegramService.sendTextMessage(update.getMessage().getChatId().toString(),
+        telegramService.sendTextMessage(update.getMessage().getChatId(),
                 "Рассылка и поиск новых вакансий приостановлены. " +
                 "Чтобы вновь начать пользоваться ботом напишите /start");
     }

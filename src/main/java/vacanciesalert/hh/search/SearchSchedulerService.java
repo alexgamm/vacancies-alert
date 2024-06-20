@@ -14,6 +14,7 @@ import vacanciesalert.telegram.TelegramService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -24,13 +25,23 @@ public class SearchSchedulerService {
     private final SearchVacanciesService searchVacanciesService;
     private final TelegramService telegramService;
 
-
-    @Scheduled(fixedRate = 600000)
+    @Scheduled(fixedRate = 10, timeUnit = TimeUnit.MINUTES)
     public void schedule() {
+        try {
+            startScheduledTask();
+        } catch (Throwable e) {
+            log.error("Error while running scheduled search", e);
+        }
+    }
+
+    private void startScheduledTask() {
         // TODO remove identical vacancies based on id
         log.info("scheduled task begins. Time: {}", Instant.now());
         List<UserInfo> allUsers = userInfoRepository.findAll();
         for (UserInfo user : allUsers) {
+            if (user.getExpiredAt() == null) {
+                continue;
+            }
             if (authorizationService.isExpired(user.getChatId())) {
                 UserTokens tokens = authorizationService.getOrRefreshTokens(
                         authorizationService.decodeToken(user.getRefreshToken()),
@@ -42,7 +53,7 @@ public class SearchSchedulerService {
         }
         allUsers = userInfoRepository.findAll();
         for (UserInfo user : allUsers) {
-            if (user.getTags() == null) {
+            if (user.getTags() == null || user.getTags().isEmpty() || user.getExpiredAt() == null) {
                 continue;
             }
             Map<String, List<Vacancy>> newVacancies = searchVacanciesService.getNewVacancies(
@@ -60,7 +71,7 @@ public class SearchSchedulerService {
                     String header = "Обнаружены новые вакансии по запросу: " + tag + "\n";
                     String vacanciesText = getVacanciesMessageText(vacancies);
                     log.info("Message in tg: {}", header + vacanciesText);
-                    telegramService.sendTextMessage(user.getChatId().toString(), header + vacanciesText);
+                    telegramService.sendTextMessage(user.getChatId(), header + vacanciesText);
                 }
             }
         }

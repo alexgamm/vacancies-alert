@@ -3,7 +3,6 @@ package vacanciesalert.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vacanciesalert.model.entity.UserInfo;
 
@@ -23,9 +22,13 @@ public interface UserInfoRepository extends JpaRepository<UserInfo, Long> {
     @Query("UPDATE UserInfo u SET u.accessToken = :accessToken, u.refreshToken = :refreshToken, u.expiredAt = :expiredAt WHERE u.chatId = :chatId")
     void updateTokensByChatId(Long chatId, String accessToken, String refreshToken, Instant expiredAt);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE UserInfo u SET u.tags = :tags WHERE u.chatId = :chatId")
     void updateTags(Long chatId, Set<String> tags);
+
+    @Modifying
+    @Query("UPDATE UserInfo u SET u.salaryFrom = :salaryFrom, u.salaryTo = :salaryTo WHERE u.chatId = :chatId")
+    void updateSalaryRange(Long chatId, Integer salaryFrom, Integer salaryTo);
 
     @Modifying
     @Query("UPDATE UserInfo u SET u.searchVacanciesFrom = :from WHERE u.chatId = :chatId")

@@ -38,10 +38,10 @@ public class SetTagsCommand implements UserCommand {
                     {0} 
                     Как только на hh появится новая, подходящая вам вакансия, она сразу же отобразится в этом чате
                     """;
-            telegramService.sendTextMessage(chatId.toString(), MessageFormat.format(messageTemplate, tagsText));
+            telegramService.sendTextMessage(chatId, MessageFormat.format(messageTemplate, tagsText));
             inputtingUsers.remove(chatId);
         } else {
-            telegramService.sendTextMessage(chatId.toString(), """
+            telegramService.sendTextMessage(chatId, """
                     Введите теги для поиска необходимых вам вакансий через запятую.
                     Например:
                     учитель русского языка, преподаватель физики и математики, заместитель директора""");

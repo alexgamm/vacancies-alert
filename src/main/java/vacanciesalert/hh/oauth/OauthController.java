@@ -12,8 +12,6 @@ import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
 
-import java.time.Instant;
-
 @Controller
 @RequestMapping("/oauth/hh")
 @RequiredArgsConstructor
@@ -26,23 +24,22 @@ public class OauthController {
 
     @GetMapping("/redirect")
     @Transactional
-    public String processAuthorization(@RequestParam("code") String code, @RequestParam("state") String chatId) {
+    public String processAuthorization(@RequestParam("code") String code, @RequestParam("state") String chatIdStr) {
         // TODO if state is null
+        long chatId = Long.parseLong(chatIdStr);
         try {
             log.info("Processing authorization code {}", code);
-            UserInfo userInfo = userInfoRepository.findUserInfoByChatId(Long.parseLong(chatId));
+            UserInfo userInfo = userInfoRepository.findUserInfoByChatId(chatId);
             UserTokens userTokens;
             if (userInfo.getAccessToken() == null) {
                 userTokens = authorizationService.getOrRefreshTokens(code, false);
                 UserTokens encryptedTokens = authorizationService.encryptTokens(userTokens);
-                userInfo = new UserInfo(
-                        userInfo.getChatId(),
-                        encryptedTokens.accessToken(),
-                        encryptedTokens.refreshToken(),
-                        userTokens.accessTokenExpiration(),
-                        null,
-                        null
-                );
+                userInfo = new UserInfo()
+                        .setChatId(userInfo.getChatId())
+                        .setAccessToken(encryptedTokens.accessToken())
+                        .setRefreshToken(encryptedTokens.refreshToken())
+                        .setExpiredAt(userTokens.accessTokenExpiration())
+                        .setShowHiddenSalaryVacancies(true);
                 userInfoRepository.save(userInfo);
             } else {
                 // TODO отправить сообщение с доступными тэгами

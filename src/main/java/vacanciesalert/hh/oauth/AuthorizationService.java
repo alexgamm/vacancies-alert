@@ -1,12 +1,12 @@
 package vacanciesalert.hh.oauth;
 
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.core.UriBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriComponentsBuilder;
 import vacanciesalert.hh.oauth.model.GetTokensResponse;
 import vacanciesalert.hh.oauth.model.UserTokens;
 import vacanciesalert.repository.UserInfoRepository;
@@ -37,13 +37,14 @@ public class AuthorizationService {
     @Value("${hh.redirect.uri}")
     private String redirectUri;
 
-    public URI createAuthUri(String chatId) {
-        return UriBuilder.fromUri(REDIRECT_URL)
+    public String createAuthUri(String chatId) {
+        return UriComponentsBuilder.fromUriString(REDIRECT_URL)
                 .queryParam("response_type", "code")
                 .queryParam("client_id", clientId)
                 .queryParam("redirect_uri", redirectUri)
                 .queryParam("state", chatId)
-                .build();
+                .build()
+                .toString();
     }
 
     public UserTokens getOrRefreshTokens(String valueToExchange, boolean refresh) {
