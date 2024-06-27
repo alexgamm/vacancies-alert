@@ -9,7 +9,8 @@ import vacanciesalert.model.hhSearchResponse.Vacancies;
 import vacanciesalert.model.hhSearchResponse.Vacancy;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -17,30 +18,26 @@ import java.util.*;
 public class SearchVacanciesService {
     private final WebClient webClient;
 
-    public Map<String, List<Vacancy>> getNewVacancies(String accessToken, Set<String> tags, Instant from) {
-        Map<String, List<Vacancy>> result = new HashMap<>();
-        for (String tag : tags) {
-            Vacancies allVacancies = webClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .scheme("https")
-                            .host("api.hh.ru")
-                            .path("/vacancies")
-                            .queryParam("text", tag)
-                            .build()
-                    )
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                    .retrieve()
-                    .bodyToMono(Vacancies.class)
-                    .block();
-            if (allVacancies == null) {
-                result.put(tag, Collections.emptyList());
-                continue;
-            }
-            List<Vacancy> freshVacancies = allVacancies.getItems().stream()
-                    .filter(vacancy -> vacancy.getPublishedAt().isAfter(from))
-                    .toList();
-            result.put(tag, freshVacancies);
+    // TODO get fresh vacancies within api query
+
+    public List<Vacancy> getNewVacancies(String accessToken, String tag, Instant from) {
+        Vacancies allVacancies = webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .scheme("https")
+                        .host("api.hh.ru")
+                        .path("/vacancies")
+                        .queryParam("text", tag)
+                        .build()
+                )
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .retrieve()
+                .bodyToMono(Vacancies.class)
+                .block();
+        if (allVacancies == null) {
+            return Collections.emptyList();
         }
-        return result;
+        return allVacancies.getItems().stream()
+                .filter(vacancy -> vacancy.getPublishedAt().isAfter(from))
+                .toList();
     }
 }

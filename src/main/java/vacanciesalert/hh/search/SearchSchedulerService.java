@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import vacanciesalert.hh.oauth.AuthorizationService;
-import vacanciesalert.hh.oauth.model.UserTokens;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.model.hhSearchResponse.Vacancy;
 import vacanciesalert.repository.UserInfoRepository;
@@ -13,7 +12,6 @@ import vacanciesalert.telegram.TelegramService;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -37,43 +35,9 @@ public class SearchSchedulerService {
     private void startScheduledTask() {
         // TODO remove identical vacancies based on id
         log.info("scheduled task begins. Time: {}", Instant.now());
-        List<UserInfo> allUsers = userInfoRepository.findAll();
+        List<UserInfo> allUsers = userInfoRepository.findUsersWithTagsAndAccessToken();
         for (UserInfo user : allUsers) {
-            if (user.getExpiredAt() == null) {
-                continue;
-            }
-            if (authorizationService.isExpired(user.getChatId())) {
-                UserTokens tokens = authorizationService.getOrRefreshTokens(
-                        authorizationService.decodeToken(user.getRefreshToken()),
-                        true
-                );
-                tokens = authorizationService.encryptTokens(tokens);
-                authorizationService.updateTokens(user.getChatId(), tokens);
-            }
-        }
-        allUsers = userInfoRepository.findAll();
-        for (UserInfo user : allUsers) {
-            if (user.getTags() == null || user.getTags().isEmpty() || user.getExpiredAt() == null) {
-                continue;
-            }
-            Map<String, List<Vacancy>> newVacancies = searchVacanciesService.getNewVacancies(
-                    authorizationService.decodeToken(user.getAccessToken()),
-                    user.getTags(),
-                    Instant.now().minusSeconds(600)
-            );
-            log.info("For chatId: {}. Found vacancies: {}", user.getChatId(), newVacancies);
-            if (newVacancies.values().stream().allMatch(List::isEmpty)) {
-                continue;
-            }
-            for (String tag : newVacancies.keySet()) {
-                List<Vacancy> vacancies = newVacancies.get(tag);
-                if (!vacancies.isEmpty()) {
-                    String header = "Обнаружены новые вакансии по запросу: " + tag + "\n";
-                    String vacanciesText = getVacanciesMessageText(vacancies);
-                    log.info("Message in tg: {}", header + vacanciesText);
-                    telegramService.sendTextMessage(user.getChatId(), header + vacanciesText);
-                }
-            }
+            notifyUserAboutFreshVacancies(user);
         }
         log.info("scheduled task ends. Time: {}", Instant.now());
     }
@@ -93,4 +57,33 @@ public class SearchSchedulerService {
         }
         return vacanciesText;
     }
+
+    private void notifyUserAboutFreshVacancies(UserInfo user) {
+        for (String tag : user.getTags()) {
+            List<Vacancy> vacancies = searchVacanciesService.getNewVacancies(
+                    user.getAccessToken(),
+                    tag,
+                    Instant.now().minusSeconds(600)
+            );
+            log.info("For chatId: {}; tag: {}. Found vacancies: {}", user.getChatId(), tag, vacancies);
+            if (vacancies.isEmpty()) {
+                continue;
+            }
+//            if (user.getSalaryFrom() != null) {
+//                filterVacanciesBasedOnSalary(vacancies, user.getSalaryFrom(), user.getSalaryTo());
+//            }
+            if (!vacancies.isEmpty()) {
+                String header = "Обнаружены новые вакансии по запросу: " + tag + "\n";
+                String vacanciesText = getVacanciesMessageText(vacancies);
+                log.info("Message in tg: {}", header + vacanciesText);
+                telegramService.sendTextMessage(user.getChatId(), header + vacanciesText);
+            }
+        }
+    }
+
+
+//    private List<Vacancy> filterVacanciesBasedOnSalary(List<Vacancy> vacancies, Integer from, Integer to) {
+//        vacancies.stream().filter(vacancy -> vacancy.)
+//    }
+
 }

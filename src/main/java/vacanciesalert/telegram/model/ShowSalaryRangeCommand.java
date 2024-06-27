@@ -52,7 +52,7 @@ public class ShowSalaryRangeCommand implements UserCommand {
             telegramService.sendTextMessage(
                     chatId,
                     String.format(
-                            "На данный момент вам видны вакансии с заработной платой от %s рублей до %s",
+                            "На данный момент вам видны вакансии с заработной платой от %s до %s рублей",
                             decimalFormat.format(userInfo.getSalaryFrom()),
                             decimalFormat.format(userInfo.getSalaryTo())
                     )

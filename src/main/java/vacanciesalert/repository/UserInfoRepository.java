@@ -7,12 +7,16 @@ import org.springframework.stereotype.Repository;
 import vacanciesalert.model.entity.UserInfo;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 
 
 @Repository
 public interface UserInfoRepository extends JpaRepository<UserInfo, Long> {
     UserInfo findUserInfoByChatId(Long chatId);
+
+    @Query("SELECT u FROM UserInfo u WHERE u.accessToken != null AND u.tags != null AND SIZE(u.tags) > 0")
+    List<UserInfo> findUsersWithTagsAndAccessToken();
 
     @Modifying
     @Query("DELETE FROM UserInfo u WHERE u.chatId = :chatId")

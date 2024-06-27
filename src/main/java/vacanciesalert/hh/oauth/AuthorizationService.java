@@ -9,10 +9,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import vacanciesalert.hh.oauth.model.GetTokensResponse;
 import vacanciesalert.hh.oauth.model.UserTokens;
+import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
-import vacanciesalert.utils.EncryptionConverter;
 
-import java.net.URI;
 import java.time.Instant;
 
 @Service
@@ -21,8 +20,6 @@ import java.time.Instant;
 public class AuthorizationService {
 
     private final UserInfoRepository userInfoRepository;
-
-    private final EncryptionConverter encryptionConverter;
 
     private final WebClient webClient;
 
@@ -47,6 +44,7 @@ public class AuthorizationService {
                 .toString();
     }
 
+    // TODO split method
     public UserTokens getOrRefreshTokens(String valueToExchange, boolean refresh) {
         String tokenType = refresh ? "refresh_token" : "code";
         String grantType = refresh ? "refresh_token" : "authorization_code";
@@ -67,29 +65,21 @@ public class AuthorizationService {
                 Instant.now().plusSeconds(response.getExpiresIn()));
     }
 
-    public UserTokens encryptTokens(UserTokens userTokens) {
-        return new UserTokens(
-                encryptionConverter.convertToDatabaseColumn(userTokens.accessToken()),
-                encryptionConverter.convertToDatabaseColumn(userTokens.refreshToken()),
-                userTokens.accessTokenExpiration()
-        );
-    }
-
-    public String decodeToken(String token) {
-        return encryptionConverter.convertToEntityAttribute(token);
-    }
-
     @Transactional
-    public void updateTokens(Long chatId, UserTokens tokens) {
+    public String getAccessToken(UserInfo user) {
+        if (user.getExpiredAt() != null && Instant.now().isBefore(user.getExpiredAt())) {
+            return user.getAccessToken();
+        }
+        UserTokens tokens = getOrRefreshTokens(
+                user.getRefreshToken(),
+                true
+        );
         userInfoRepository.updateTokensByChatId(
-                chatId,
+                user.getChatId(),
                 tokens.accessToken(),
                 tokens.refreshToken(),
                 tokens.accessTokenExpiration()
         );
-    }
-
-    public boolean isExpired(Long chatId) {
-        return Instant.now().isAfter(userInfoRepository.findUserInfoByChatId(chatId).getExpiredAt());
+        return tokens.accessToken();
     }
 }
