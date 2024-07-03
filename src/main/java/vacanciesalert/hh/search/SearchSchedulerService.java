@@ -61,7 +61,7 @@ public class SearchSchedulerService {
     private void notifyUserAboutFreshVacancies(UserInfo user) {
         for (String tag : user.getTags()) {
             List<Vacancy> vacancies = searchVacanciesService.getNewVacancies(
-                    user.getAccessToken(),
+                    authorizationService.getAccessToken(user),
                     tag,
                     Instant.now().minusSeconds(600)
             );
