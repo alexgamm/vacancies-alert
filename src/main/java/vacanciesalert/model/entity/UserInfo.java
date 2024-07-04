@@ -9,9 +9,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -24,9 +24,9 @@ import java.util.Set;
 @AllArgsConstructor
 @Entity
 @Accessors(chain = true)
-@Setter
 @Table(name = "user_info")
 @Getter
+@Builder
 public class UserInfo {
     @NotNull
     @Id
@@ -56,5 +56,6 @@ public class UserInfo {
     private Integer salaryTo;
     @Column(name = "show_hidden_salary_vacancies")
     private boolean showHiddenSalaryVacancies;
+
 }
 

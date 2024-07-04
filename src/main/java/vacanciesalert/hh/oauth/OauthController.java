@@ -7,7 +7,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import vacanciesalert.hh.oauth.model.UserTokens;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
@@ -30,17 +29,8 @@ public class OauthController {
         try {
             log.info("Processing authorization code {}", code);
             UserInfo userInfo = userInfoRepository.findUserInfoByChatId(chatId);
-            UserTokens userTokens;
             if (userInfo.getAccessToken() == null) {
-                userTokens = authorizationService.getOrRefreshTokens(code, false);
-                UserTokens encryptedTokens = authorizationService.encryptTokens(userTokens);
-                userInfo = new UserInfo()
-                        .setChatId(userInfo.getChatId())
-                        .setAccessToken(encryptedTokens.accessToken())
-                        .setRefreshToken(encryptedTokens.refreshToken())
-                        .setExpiredAt(userTokens.accessTokenExpiration())
-                        .setShowHiddenSalaryVacancies(true);
-                userInfoRepository.save(userInfo);
+                authorizationService.authorizeUserInHh(chatId, code);
             } else {
                 // TODO отправить сообщение с доступными тэгами
                 telegramService.sendTextMessage(chatId, "Вы уже авторизованы. Продолжайте использовать наш телеграм-бот");

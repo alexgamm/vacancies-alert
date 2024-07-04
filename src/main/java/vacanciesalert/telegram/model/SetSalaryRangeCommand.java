@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import vacanciesalert.exception.InvalidSalaryRangeException;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
 import vacanciesalert.utils.SalaryUserInputParser;
@@ -32,7 +33,16 @@ public class SetSalaryRangeCommand implements UserCommand {
             SalaryUserInputParser.Salary salaryRange;
             try {
                 salaryRange = SalaryUserInputParser.parse(update.getMessage().getText());
-            } catch (Exception e) {
+            } catch (InvalidSalaryRangeException.FromExceeded e) {
+                log.error("""
+                    Вы хотите слишком многого.
+                    Поиск заработной платы осуществляется в диапазоне от 0 до 1.000.000 рублей.
+                    """);
+                return;
+            } catch (InvalidSalaryRangeException.ToExceeded e) {
+                log.error("Поиск заработной платы осуществляется в диапазоне от 0 до 1.000.000 рублей");
+                return;
+            } catch (InvalidSalaryRangeException e) {
                 telegramService.sendTextMessage(
                         chatId,
                         """
@@ -45,7 +55,7 @@ public class SetSalaryRangeCommand implements UserCommand {
                 log.warn("Invalid user input when setting salary range");
                 return;
             }
-            userInfoRepository.updateSalaryRange(chatId, salaryRange.getFrom(), salaryRange.getTo());
+            userInfoRepository.updateSalaryRange(chatId, salaryRange.from(), salaryRange.to());
             telegramService.sendTextMessage(
                     chatId,
                     "Диапазон зарплаты успешно установлен."

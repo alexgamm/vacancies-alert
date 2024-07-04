@@ -26,7 +26,7 @@ public class StartBotCommand implements UserCommand {
     @Override
     public void execute(Update update) {
         Long chatId = update.getMessage().getChatId();
-        UserInfo userInfo = new UserInfo().setChatId(chatId).setShowHiddenSalaryVacancies(true);
+        UserInfo userInfo = UserInfo.builder().chatId(chatId).build();
         userInfoRepository.save(userInfo);
         Map<String, String> buttons = new HashMap<>();
         String buttonText = "Авторизация на hh";

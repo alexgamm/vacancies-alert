@@ -1,50 +1,55 @@
 package vacanciesalert.utils;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import vacanciesalert.exception.InvalidSalaryRangeException;
+
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SalaryUserInputParser {
 
-    public static Salary parse(String input) throws Exception {
-        Salary.SalaryBuilder builder = Salary.builder();
-        if (input.contains("от")) {
-            String[] parts = input.split(" ");
-            int salaryFrom;
-            if (parts[1].length() > 10) {
-                salaryFrom = Integer.MAX_VALUE;
-            } else {
-                try {
-                    salaryFrom = Integer.parseInt(parts[1]);
-                } catch (NumberFormatException e) {
-                    throw new Exception(e.getMessage());
-                }
-            }
-            builder.from(salaryFrom);
-            if (input.contains("до") && !(parts[1].length() > 10)) {
-                int salaryTo;
-                if (parts[3].length() > 10) {
-                    salaryTo = Integer.MAX_VALUE;
-                } else {
-                    try {
-                        salaryTo = Integer.parseInt(parts[3]);
-                    } catch (NumberFormatException e) {
-                        throw new Exception(e.getMessage());
-                    }
-                }
-                return builder.to(salaryTo).build();
-            }
-        } else {
-            throw new Exception("invalid user input");
+    public static final int MAX_BOUNDARY_LENGTH = 10;
+    public static final int MAX_BOUNDARY_VALUE = 1_000_000;
+    public static final Pattern PATTERN = Pattern.compile("(?:[\\sот]+)?([^-\\sдо]+)?(?:[-\\sдо]+)?(.+)?");
+
+    public static Salary parse(String input) throws InvalidSalaryRangeException {
+        Matcher matcher = PATTERN.matcher(input);
+        if (!matcher.find()) {
+            throw new InvalidSalaryRangeException();
         }
-        return builder.build();
+        Integer from = parseBoundary(matcher.group(1), InvalidSalaryRangeException.FromExceeded::new);
+        if (from == null) {
+            throw new InvalidSalaryRangeException();
+        }
+        Integer to = parseBoundary(matcher.group(2), InvalidSalaryRangeException.ToExceeded::new);
+        if (to != null && to < from) {
+            throw new InvalidSalaryRangeException();
+        }
+        return new Salary(from, from.equals(to) ? null : to);
     }
 
-    @RequiredArgsConstructor
-    @Builder
-    @Getter
-    public static class Salary {
-        private final Integer from;
-        private final Integer to;
+    private static Integer parseBoundary(
+            String input,
+            Supplier<InvalidSalaryRangeException> exceededBoundaryExceptionProvider
+    ) throws InvalidSalaryRangeException {
+        if (input == null) {
+            return null;
+        }
+        if (input.length() > MAX_BOUNDARY_LENGTH) {
+            throw exceededBoundaryExceptionProvider.get();
+        }
+        int parsed;
+        try {
+            parsed = Integer.parseInt(input);
+        } catch (NumberFormatException e) {
+            throw new InvalidSalaryRangeException();
+        }
+        if (parsed > MAX_BOUNDARY_VALUE) {
+            throw exceededBoundaryExceptionProvider.get();
+        }
+        return parsed;
+    }
+
+    public record Salary(Integer from, Integer to) {
     }
 }

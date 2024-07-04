@@ -5,10 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import vacanciesalert.hh.api.ApiClient;
 import vacanciesalert.model.hhSearchResponse.Vacancies;
 import vacanciesalert.model.hhSearchResponse.Vacancy;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -16,28 +18,47 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class SearchVacanciesService {
-    private final WebClient webClient;
-
+    private final ApiClient apiClient;
     // TODO get fresh vacancies within api query
 
-    public List<Vacancy> getNewVacancies(String accessToken, String tag, Instant from) {
-        Vacancies allVacancies = webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .scheme("https")
-                        .host("api.hh.ru")
-                        .path("/vacancies")
-                        .queryParam("text", tag)
-                        .build()
-                )
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                .retrieve()
-                .bodyToMono(Vacancies.class)
-                .block();
-        if (allVacancies == null) {
+    public List<Vacancy> getNewVacancies(String accessToken, String tag, boolean showHiddenSalaryVacancies) {
+        Vacancies vacancies = apiClient.getVacancies(accessToken, tag, !showHiddenSalaryVacancies);
+        return filterOnlyNewVacancies(vacancies);
+    }
+
+    public List<Vacancy> getNewVacancies(
+            String accessToken,
+            String tag,
+            int salaryFrom,
+            int salaryTo,
+            boolean showHiddenSalaryVacancies
+    ) {
+        List<Vacancy> newVacancies = getNewVacancies(accessToken, tag, showHiddenSalaryVacancies);
+        return newVacancies.stream().filter(vacancy -> {
+            if (salaryTo == 0) {
+                if (vacancy.getSalary().getFrom() == null) {
+                    return vacancy.getSalary().getTo() >= salaryFrom;
+                }
+                return vacancy.getSalary().getFrom() >= salaryFrom;
+            }
+            if (vacancy.getSalary().getFrom() == null) {
+                return vacancy.getSalary().getTo() >= salaryFrom && vacancy.getSalary().getTo() <= salaryTo;
+            }
+            if (vacancy.getSalary().getTo() == null) {
+                return vacancy.getSalary().getFrom() >= salaryFrom && vacancy.getSalary().getFrom() <= salaryTo;
+            }
+            return vacancy.getSalary().getFrom() >= salaryFrom && vacancy.getSalary().getTo() <= salaryTo;
+        }).toList();
+    }
+
+
+    private List<Vacancy> filterOnlyNewVacancies(Vacancies apiVacancies) {
+        if (apiVacancies == null) {
             return Collections.emptyList();
         }
-        return allVacancies.getItems().stream()
-                .filter(vacancy -> vacancy.getPublishedAt().isAfter(from))
+        return apiVacancies.getItems().stream()
+                .filter(vacancy -> vacancy.getPublishedAt().isAfter(Instant.now().minusSeconds(600)))
                 .toList();
     }
+
 }

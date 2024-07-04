@@ -60,11 +60,17 @@ public class SearchSchedulerService {
 
     private void notifyUserAboutFreshVacancies(UserInfo user) {
         for (String tag : user.getTags()) {
-            List<Vacancy> vacancies = searchVacanciesService.getNewVacancies(
-                    authorizationService.getAccessToken(user),
-                    tag,
-                    Instant.now().minusSeconds(600)
-            );
+            String accessToken;
+            if (user.getExpiredAt() != null && Instant.now().isBefore(user.getExpiredAt())) {
+                accessToken = user.getAccessToken();
+            } else {
+                try {
+                    accessToken = authorizationService.refreshTokens(user.getChatId(), user.getRefreshToken()).accessToken();
+                } catch (Exception e) {
+                    return;
+                }
+            }
+            List<Vacancy> vacancies = searchVacanciesService.getNewVacancies(accessToken, tag, user.isShowHiddenSalaryVacancies());
             log.info("For chatId: {}; tag: {}. Found vacancies: {}", user.getChatId(), tag, vacancies);
             if (vacancies.isEmpty()) {
                 continue;

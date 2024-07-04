@@ -4,14 +4,18 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Mono;
 import vacanciesalert.hh.oauth.model.GetTokensResponse;
 import vacanciesalert.hh.oauth.model.UserTokens;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
 
+import java.text.MessageFormat;
 import java.time.Instant;
 
 @Service
@@ -44,42 +48,88 @@ public class AuthorizationService {
                 .toString();
     }
 
-    // TODO split method
-    public UserTokens getOrRefreshTokens(String valueToExchange, boolean refresh) {
-        String tokenType = refresh ? "refresh_token" : "code";
-        String grantType = refresh ? "refresh_token" : "authorization_code";
-        GetTokensResponse response = webClient.post().uri("https://api.hh.ru/token", uriBuilder -> uriBuilder
-                        .queryParam("client_id", clientId)
-                        .queryParam("client_secret", clientSecret)
-                        .queryParam(tokenType, valueToExchange)
-                        .queryParam("grant_type", grantType)
-                        .queryParam("redirect_uri", redirectUri)
-                        .build())
+    @Transactional
+    public void authorizeUserInHh(Long chatId, String code) {
+        GetTokensResponse response = webClient.post().uri(
+                        "https://api.hh.ru/token", uriBuilder -> uriBuilder
+                                .queryParam("client_id", clientId)
+                                .queryParam("client_secret", clientSecret)
+                                .queryParam("code", code)
+                                .queryParam("grant_type", "authorization_code")
+                                .queryParam("redirect_uri", redirectUri)
+                                .build()
+                )
                 .retrieve()
                 .bodyToMono(GetTokensResponse.class)
                 .block();
         // TODO handle exception with getting tokens
-        return new UserTokens(
-                response.getAccessToken(),
-                response.getRefreshToken(),
-                Instant.now().plusSeconds(response.getExpiresIn()));
+        UserInfo userInfo = UserInfo.builder()
+                .chatId(chatId)
+                .accessToken(response.getAccessToken())
+                .refreshToken(response.getRefreshToken())
+                .expiredAt(Instant.now().plusSeconds(response.getExpiresIn()))
+                .build();
+        userInfoRepository.save(userInfo);
     }
 
     @Transactional
-    public String getAccessToken(UserInfo user) {
-        if (user.getExpiredAt() != null && Instant.now().isBefore(user.getExpiredAt())) {
-            return user.getAccessToken();
+    public UserTokens refreshTokens(Long chatId, String refreshToken) throws Exception {
+        GetTokensResponse response = null;
+        try {
+            response = webClient.post().uri(
+                            "https://api.hh.ru/token", uriBuilder -> uriBuilder
+                                    .queryParam("client_id", clientId)
+                                    .queryParam("client_secret", clientSecret)
+                                    .queryParam("redirect_uri", redirectUri)
+                                    .queryParam("grant_type", "refresh_token")
+                                    .queryParam("refresh_token", refreshToken)
+                                    .build()
+                    )
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, apiResponse -> {
+                        log.error(
+                                "Api error when exchanging refresh to access token for user {}: {}",
+                                chatId,
+                                apiResponse);
+                        return Mono.error(new Exception(": " + apiResponse));
+                    })
+                    .bodyToMono(GetTokensResponse.class)
+                    .onErrorMap(originalException -> {
+                        log.error(
+                                "Invalid data for json deserialization for user {}: {}",
+                                chatId,
+                                originalException.getMessage()
+                        );
+                        return new Exception(
+                                String.format("Invalid data for json deserialization for user %d", chatId),
+                                originalException
+                        );
+                    })
+                    .block();
+        } catch (Throwable t) {
         }
-        UserTokens tokens = getOrRefreshTokens(
-                user.getRefreshToken(),
-                true
+        if (response == null) {
+            throw new Exception();
+        }
+        UserTokens tokens = new UserTokens(
+                response.getAccessToken(),
+                response.getRefreshToken(),
+                Instant.now().plusSeconds(response.getExpiresIn())
         );
         userInfoRepository.updateTokensByChatId(
-                user.getChatId(),
+                chatId,
                 tokens.accessToken(),
                 tokens.refreshToken(),
                 tokens.accessTokenExpiration()
         );
-        return tokens.accessToken();
+        return tokens;
     }
+
+//    public String getAccessToken(UserInfo user) {
+//        if (user.getExpiredAt() != null && Instant.now().isBefore(user.getExpiredAt())) {
+//            return user.getAccessToken();
+//        }
+//        return refreshTokens(user.getChatId(), user.getRefreshToken()).accessToken();
+//    }
+
 }
