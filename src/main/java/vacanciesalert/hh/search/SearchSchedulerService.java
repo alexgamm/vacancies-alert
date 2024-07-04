@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import vacanciesalert.hh.exception.ApiException;
+import vacanciesalert.hh.exception.ClientException;
 import vacanciesalert.hh.oauth.AuthorizationService;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.model.hhSearchResponse.Vacancy;
@@ -66,7 +68,8 @@ public class SearchSchedulerService {
             } else {
                 try {
                     accessToken = authorizationService.refreshTokens(user.getChatId(), user.getRefreshToken()).accessToken();
-                } catch (Exception e) {
+                } catch (ApiException | ClientException e) {
+                    log.error("Api error when exchanging refresh to access token for user {}", user.getChatId(), e);
                     return;
                 }
             }
