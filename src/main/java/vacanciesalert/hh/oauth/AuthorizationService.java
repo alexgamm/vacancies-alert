@@ -9,6 +9,7 @@ import vacanciesalert.hh.exception.ApiException;
 import vacanciesalert.hh.exception.ClientException;
 import vacanciesalert.hh.oauth.model.GetTokensResponse;
 import vacanciesalert.hh.oauth.model.UserTokens;
+import vacanciesalert.model.entity.Salary;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
 
@@ -30,6 +31,7 @@ public class AuthorizationService {
 
     @Transactional
     public void authorizeUserInHh(Long chatId, String code) {
+        // TODO check if salary.showhiddensalary is true by default after /start
         GetTokensResponse response = apiClient.getTokens(code);
         // TODO handle exception with getting tokens
         UserInfo userInfo = UserInfo.builder()
@@ -37,6 +39,7 @@ public class AuthorizationService {
                 .accessToken(response.getAccessToken())
                 .refreshToken(response.getRefreshToken())
                 .expiredAt(Instant.now().plusSeconds(response.getExpiresIn()))
+                .salary(Salary.builder().showHiddenSalaryVacancies(true).build())
                 .build();
         userInfoRepository.save(userInfo);
     }

@@ -30,9 +30,10 @@ import java.util.Set;
 @Getter
 @Slf4j
 public class TelegramService {
-
+    @Getter
+    private final List<String> yesNoButtons = List.of("да", "нет");
     private final TelegramClient telegramClient;
-    private final Map<Integer, MultiselectTagsCursor> tagSelectionState = new HashMap<>(); // TODO For every chat
+    private final Map<Integer, MultiselectTagsCursor> tagSelectionState = new HashMap<>();
 
     @Value("${tg.bot.token}")
     private String token;
@@ -74,6 +75,30 @@ public class TelegramService {
         execute(message);
     }
 
+    public void sendYesNoButtonsMessage(Long chatId, String messageText) {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
+        String approveButtonCallbackData = ButtonActionType.TOGGLE_HIDDEN_SALARY + " ; " + yesNoButtons.indexOf("да");
+        String declineButtonCallbackData = ButtonActionType.TOGGLE_HIDDEN_SALARY + " ; " + yesNoButtons.indexOf("нет");
+        for (String button : yesNoButtons) {
+            buttons.add(
+                    InlineKeyboardButton.builder()
+                            .text(button)
+                            .callbackData(button.equals("да") ? approveButtonCallbackData : declineButtonCallbackData)
+                            .build()
+            );
+        }
+        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                .keyboard(buttons.stream().map(InlineKeyboardRow::new).toList())
+                .build();
+        SendMessage message = SendMessage.builder().chatId(chatId).text(messageText).replyMarkup(markup).build();
+
+        try {
+            telegramClient.execute(message);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     public void sendRemoveTagsMessage(
             Long chatId,
@@ -81,13 +106,14 @@ public class TelegramService {
             Set<String> tags
     ) {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        MultiselectTagsCursor multiselectTagsCursor = new MultiselectTagsCursor(tags);
-        for (Integer tagIdx : multiselectTagsCursor.getTagsOnTheCurrentPage().keySet()) {
-            String callbackData = ButtonActionType.TOGGLE_TAG + " ; " + tagIdx;
+        MultiselectTagsCursor multiselectTagsCursor = new MultiselectTagsCursor(tags.stream().sorted().toList());
+        List<String> tagsOnTheCurrentPage = multiselectTagsCursor.getTagsOnTheCurrentPage();
+        for (String tag : tagsOnTheCurrentPage) {
+            String callbackData = ButtonActionType.TOGGLE_TAG + " ; " + tagsOnTheCurrentPage.indexOf(tag);
             log.info("Initial button callback: {}", callbackData);
             buttons.add(
                     InlineKeyboardButton.builder()
-                            .text(multiselectTagsCursor.getTagsOnTheCurrentPage().get(tagIdx))
+                            .text(tag)
                             .callbackData(callbackData)
                             .build()
             );
@@ -119,11 +145,11 @@ public class TelegramService {
         execute(message);
     }
 
-    public void editMessage(Long chatId, Integer messageId, MultiselectTagsCursor cursor) {
+    public void editTagsMessage(Long chatId, Integer messageId, MultiselectTagsCursor cursor) {
         List<InlineKeyboardRow> rows = new ArrayList<>();
-        Map<Integer, String> tags = cursor.getTagsOnTheCurrentPage();
-        for (Integer tagIdx : tags.keySet()) {
-            String tag = tags.get(tagIdx);
+        List<String> tags = cursor.getTagsOnTheCurrentPage();
+        for (String tag : tags) {
+            int tagIdx = tags.indexOf(tag);
             if (cursor.isSelected(tag)) {
                 tag = "✓ " + tag;
             }

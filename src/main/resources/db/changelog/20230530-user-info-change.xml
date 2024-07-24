@@ -4,6 +4,7 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
           http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
     <changeSet id="1-user-info-remove-constraints" author="AlexGamm">
         <dropNotNullConstraint
                 columnDataType="text"
@@ -18,4 +19,5 @@
                 columnName="expired_at"
                 tableName="user_info"/>
     </changeSet>
+
 </databaseChangeLog>

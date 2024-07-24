@@ -7,11 +7,13 @@ import org.springframework.stereotype.Service;
 import vacanciesalert.hh.exception.ApiException;
 import vacanciesalert.hh.exception.ClientException;
 import vacanciesalert.hh.oauth.AuthorizationService;
+import vacanciesalert.model.entity.Salary;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.model.hhSearchResponse.Vacancy;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +46,33 @@ public class SearchSchedulerService {
         log.info("scheduled task ends. Time: {}", Instant.now());
     }
 
+    private void notifyUserAboutFreshVacancies(UserInfo user) {
+        String accessToken;
+        if (user.getExpiredAt() != null && Instant.now().isBefore(user.getExpiredAt())) {
+            accessToken = user.getAccessToken();
+        } else {
+            try {
+                accessToken = authorizationService.refreshTokens(user.getChatId(), user.getRefreshToken()).accessToken();
+            } catch (ApiException | ClientException e) {
+                log.error("Api error when exchanging refresh to access token for user {}", user.getChatId(), e);
+                return;
+            }
+        }
+        for (String tag : user.getTags()) {
+            Salary salary = user.getSalary();
+            List<Vacancy> newVacancies = searchVacanciesService.getNewVacancies(user.getChatId(), accessToken, tag, salary, Duration.ofMinutes(10));
+            log.info("For chatId: {}; tag: {}. Found vacancies: {}", user.getChatId(), tag, newVacancies);
+            if (newVacancies.isEmpty()) {
+                continue;
+            }
+            String header = "Обнаружены новые вакансии по запросу: " + tag + "\n";
+            String vacanciesText = getVacanciesMessageText(newVacancies);
+            log.info("Message in tg: {}", header + vacanciesText);
+            telegramService.sendTextMessage(user.getChatId(), header + vacanciesText);
+
+        }
+    }
+
     private static String getVacanciesMessageText(List<Vacancy> vacancies) {
         String vacanciesText = "";
         for (Vacancy vacancy : vacancies) {
@@ -59,40 +88,5 @@ public class SearchSchedulerService {
         }
         return vacanciesText;
     }
-
-    private void notifyUserAboutFreshVacancies(UserInfo user) {
-        for (String tag : user.getTags()) {
-            String accessToken;
-            if (user.getExpiredAt() != null && Instant.now().isBefore(user.getExpiredAt())) {
-                accessToken = user.getAccessToken();
-            } else {
-                try {
-                    accessToken = authorizationService.refreshTokens(user.getChatId(), user.getRefreshToken()).accessToken();
-                } catch (ApiException | ClientException e) {
-                    log.error("Api error when exchanging refresh to access token for user {}", user.getChatId(), e);
-                    return;
-                }
-            }
-            List<Vacancy> vacancies = searchVacanciesService.getNewVacancies(accessToken, tag, user.isShowHiddenSalaryVacancies());
-            log.info("For chatId: {}; tag: {}. Found vacancies: {}", user.getChatId(), tag, vacancies);
-            if (vacancies.isEmpty()) {
-                continue;
-            }
-//            if (user.getSalaryFrom() != null) {
-//                filterVacanciesBasedOnSalary(vacancies, user.getSalaryFrom(), user.getSalaryTo());
-//            }
-            if (!vacancies.isEmpty()) {
-                String header = "Обнаружены новые вакансии по запросу: " + tag + "\n";
-                String vacanciesText = getVacanciesMessageText(vacancies);
-                log.info("Message in tg: {}", header + vacanciesText);
-                telegramService.sendTextMessage(user.getChatId(), header + vacanciesText);
-            }
-        }
-    }
-
-
-//    private List<Vacancy> filterVacanciesBasedOnSalary(List<Vacancy> vacancies, Integer from, Integer to) {
-//        vacancies.stream().filter(vacancy -> vacancy.)
-//    }
 
 }

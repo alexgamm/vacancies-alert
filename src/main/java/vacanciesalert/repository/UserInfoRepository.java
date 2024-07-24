@@ -13,9 +13,8 @@ import java.util.Set;
 
 @Repository
 public interface UserInfoRepository extends JpaRepository<UserInfo, Long> {
-    UserInfo findUserInfoByChatId(Long chatId);
 
-    @Query("SELECT u FROM UserInfo u WHERE u.accessToken != null AND u.tags != null AND SIZE(u.tags) > 0")
+    @Query(value = "SELECT * FROM user_info u WHERE u.access_token IS NOT NULL AND jsonb_array_length(u.tags) > 0", nativeQuery = true)
     List<UserInfo> findUsersWithTagsAndAccessToken();
 
     @Modifying
@@ -31,10 +30,16 @@ public interface UserInfoRepository extends JpaRepository<UserInfo, Long> {
     void updateTags(Long chatId, Set<String> tags);
 
     @Modifying
-    @Query("UPDATE UserInfo u SET u.salaryFrom = :salaryFrom, u.salaryTo = :salaryTo WHERE u.chatId = :chatId")
+    @Query("UPDATE UserInfo u SET u.salary.from = :salaryFrom, u.salary.to = :salaryTo WHERE u.chatId = :chatId")
     void updateSalaryRange(Long chatId, Integer salaryFrom, Integer salaryTo);
+
+    @Modifying
+    @Query("UPDATE UserInfo u SET u.salary.showHiddenSalaryVacancies = :showHiddenSalaryVacancies WHERE u.chatId = :chatId")
+    void toggleHiddenSalaryVacancies(Long chatId, boolean showHiddenSalaryVacancies);
 
     @Modifying
     @Query("UPDATE UserInfo u SET u.searchVacanciesFrom = :from WHERE u.chatId = :chatId")
     void updateSearchVacanciesFrom(Long chatId, Instant from);
+
+    // TODO add updateShowHiddenVacancies
 }

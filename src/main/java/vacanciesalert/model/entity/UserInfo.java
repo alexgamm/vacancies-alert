@@ -1,9 +1,9 @@
 package vacanciesalert.model.entity;
 
 
-import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.jetbrains.annotations.Nullable;
 import vacanciesalert.utils.EncryptionConverter;
 
 import java.time.Instant;
@@ -32,15 +33,15 @@ public class UserInfo {
     @Id
     @Column(name = "chat_id")
     private Long chatId;
-    @Nullable
+    @NotNull
     @Convert(converter = EncryptionConverter.class)
     @Column(name = "access_token")
     private String accessToken;
-    @Nullable
+    @NotNull
     @Convert(converter = EncryptionConverter.class)
     @Column(name = "refresh_token")
     private String refreshToken;
-    @Nullable
+    @NotNull
     @Column(name = "expired_at")
     private Instant expiredAt;
     @Nullable
@@ -49,13 +50,8 @@ public class UserInfo {
     @Nullable
     @Column(name = "search_vacancies_from")
     private Instant searchVacanciesFrom;
-    @Column(name = "salary_from")
-    private Integer salaryFrom;
-    @Nullable
-    @Column(name = "salary_to")
-    private Integer salaryTo;
-    @Column(name = "show_hidden_salary_vacancies")
-    private boolean showHiddenSalaryVacancies;
+    @Embedded
+    private Salary salary;
 
 }
 

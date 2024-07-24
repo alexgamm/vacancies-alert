@@ -2,26 +2,24 @@ package vacanciesalert.telegram.update.model;
 
 import lombok.Getter;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 
 public class MultiselectTagsCursor {
     public static final int TAGS_PAGE_SIZE = 8;
     private int offset = 0;
-    private final LinkedHashMap<Integer, String> allUserTags = new LinkedHashMap<>();
+    private final List<String> allUserTags = new ArrayList<>();
     @Getter
-    private LinkedHashMap<Integer, String> tagsOnTheCurrentPage = new LinkedHashMap<>();
+    private final List<String> tagsOnTheCurrentPage =  new ArrayList<>();
     @Getter
     private final Set<String> selectedTags = new HashSet<>();
     private boolean hasNextTags;
 
-    public MultiselectTagsCursor(Set<String> allUserTags) {
-        int key = 0;
-        for (String tag : allUserTags.stream().sorted().toList()) {
-            this.allUserTags.put(key, tag);
-            key++;
-        }
+    public MultiselectTagsCursor(List<String> allUserTags) {
+        this.allUserTags.addAll(allUserTags);
         changeOffset(0);
     }
 
@@ -38,10 +36,10 @@ public class MultiselectTagsCursor {
             offset += delta;
             tagsOnTheCurrentPage.clear();
             for (int i = offset; i < offset + TAGS_PAGE_SIZE; i++) {
-                if (!allUserTags.containsKey(i)) {
+                if (allUserTags.size() <= i) {
                     break;
                 }
-                tagsOnTheCurrentPage.put(i, allUserTags.get(i));
+                tagsOnTheCurrentPage.add(allUserTags.get(i));
             }
         }
         hasNextTags = offset < allUserTags.size() - TAGS_PAGE_SIZE;

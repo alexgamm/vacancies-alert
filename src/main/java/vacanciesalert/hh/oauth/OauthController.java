@@ -28,8 +28,8 @@ public class OauthController {
         long chatId = Long.parseLong(chatIdStr);
         try {
             log.info("Processing authorization code {}", code);
-            UserInfo userInfo = userInfoRepository.findUserInfoByChatId(chatId);
-            if (userInfo.getAccessToken() == null) {
+            UserInfo userInfo = userInfoRepository.findById(chatId).orElse(null);
+            if (userInfo == null) {
                 authorizationService.authorizeUserInHh(chatId, code);
             } else {
                 // TODO отправить сообщение с доступными тэгами

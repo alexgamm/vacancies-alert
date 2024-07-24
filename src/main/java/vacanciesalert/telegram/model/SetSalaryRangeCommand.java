@@ -34,13 +34,19 @@ public class SetSalaryRangeCommand implements UserCommand {
             try {
                 salaryRange = SalaryUserInputParser.parse(update.getMessage().getText());
             } catch (InvalidSalaryRangeException.FromExceeded e) {
-                log.error("""
-                    Вы хотите слишком многого.
-                    Поиск заработной платы осуществляется в диапазоне от 0 до 1.000.000 рублей.
-                    """);
+                // TODO отправлять сообщение в тг
+                telegramService.sendTextMessage(
+                        chatId,
+                        """
+                                Вы хотите слишком многого.
+                                Поиск заработной платы осуществляется в диапазоне от 0 до 1.000.000 рублей.
+                                """);
                 return;
             } catch (InvalidSalaryRangeException.ToExceeded e) {
-                log.error("Поиск заработной платы осуществляется в диапазоне от 0 до 1.000.000 рублей");
+                telegramService.sendTextMessage(
+                        chatId,
+                        "Поиск заработной платы осуществляется в диапазоне от 0 до 1.000.000 рублей"
+                );
                 return;
             } catch (InvalidSalaryRangeException e) {
                 telegramService.sendTextMessage(

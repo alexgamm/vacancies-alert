@@ -11,6 +11,7 @@ public enum UserTelegramCommands {
     REMOVE_TAGS("/removetags"),
     SET_SALARY_RANGE("/setsalary"),
     SHOW_SALARY_RANGE("/mysalaryrange"),
+    TOGGLE_HIDDEN_SALARY("/hiddensalary"),
     STOP_BOT("/stop");
 
     private final String command;

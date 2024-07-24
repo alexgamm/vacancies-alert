@@ -32,7 +32,7 @@ public class ShowSalaryRangeCommand implements UserCommand {
             // TODO add exception
             return;
         }
-        if (userInfo.getSalaryFrom() == null) {
+        if (userInfo.getSalary().getFrom() == null) {
             telegramService.sendTextMessage(
                     chatId,
                     """
@@ -40,12 +40,12 @@ public class ShowSalaryRangeCommand implements UserCommand {
                             Чтобы установить диапазон введите /setsalary
                             """
             );
-        } else if (userInfo.getSalaryTo() == null) {
+        } else if (userInfo.getSalary().getTo() == null) {
             telegramService.sendTextMessage(
                     chatId,
                     String.format(
                             "На данный момент вам видны вакансии с заработной платой начиная от %s рублей",
-                            decimalFormat.format(userInfo.getSalaryFrom())
+                            decimalFormat.format(userInfo.getSalary().getFrom())
                     )
             );
         } else {
@@ -53,8 +53,8 @@ public class ShowSalaryRangeCommand implements UserCommand {
                     chatId,
                     String.format(
                             "На данный момент вам видны вакансии с заработной платой от %s до %s рублей",
-                            decimalFormat.format(userInfo.getSalaryFrom()),
-                            decimalFormat.format(userInfo.getSalaryTo())
+                            decimalFormat.format(userInfo.getSalary().getFrom()),
+                            decimalFormat.format(userInfo.getSalary().getTo())
                     )
             );
         }

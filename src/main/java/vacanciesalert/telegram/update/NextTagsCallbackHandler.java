@@ -36,7 +36,7 @@ public class NextTagsCallbackHandler implements CallbackHandler {
             return;
         }
         cursor.changeOffset(MultiselectTagsCursor.TAGS_PAGE_SIZE);
-        telegramService.editMessage(chatId, messageId, cursor);
+        telegramService.editTagsMessage(chatId, messageId, cursor);
     }
 
     @Override

@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import vacanciesalert.repository.UserInfoRepository;
@@ -17,6 +18,7 @@ import vacanciesalert.telegram.update.NextTagsCallbackHandler;
 import vacanciesalert.telegram.update.PrevTagsCallbackHandler;
 import vacanciesalert.telegram.update.RemoveTagCallbackHandler;
 import vacanciesalert.telegram.update.SelectTagCallbackHandler;
+import vacanciesalert.telegram.update.ToggleHiddenSalaryCallbackHandler;
 import vacanciesalert.telegram.update.UpdateHandler;
 import vacanciesalert.telegram.update.UpdateType;
 import vacanciesalert.telegram.update.model.MultiselectCallbackDataModel;
@@ -41,7 +43,9 @@ public class TelegramController {
             NextTagsCallbackHandler nextTagsCallbackHandler,
             PrevTagsCallbackHandler prevTagsCallbackHandler,
             RemoveTagCallbackHandler removeCallbackHandler,
-            SelectTagCallbackHandler selectTagCallbackHandler
+            SelectTagCallbackHandler selectTagCallbackHandler,
+            ToggleHiddenSalaryCallbackHandler toggleHiddenSalaryCallbackHandler
+
     ) {
         this.userInfoRepository = userInfoRepository;
         this.telegramService = telegramService;
@@ -50,7 +54,8 @@ public class TelegramController {
                 ButtonActionType.NEXT_TAGS_PAGE, nextTagsCallbackHandler,
                 ButtonActionType.PREV_TAGS_PAGE, prevTagsCallbackHandler,
                 ButtonActionType.REMOVE_SELECTED_TAGS, removeCallbackHandler,
-                ButtonActionType.TOGGLE_TAG, selectTagCallbackHandler
+                ButtonActionType.TOGGLE_TAG, selectTagCallbackHandler,
+                ButtonActionType.TOGGLE_HIDDEN_SALARY, toggleHiddenSalaryCallbackHandler
         );
     }
 
@@ -68,12 +73,22 @@ public class TelegramController {
             }
         }
         if (updateType == UpdateType.CALLBACK) {
-            MultiselectCallbackDataModel multiselectCallbackDataModel = CallbackParser.parseCallbackData(
-                    update,
-                    telegramService.getTagSelectionState()
-                            .get(update.getCallbackQuery().getMessage().getMessageId())
-                            .getTagsOnTheCurrentPage()
-            );
+            CallbackQuery callbackQuery = update.getCallbackQuery();
+            MultiselectCallbackDataModel multiselectCallbackDataModel;
+            if (ButtonActionType.TOGGLE_HIDDEN_SALARY == CallbackParser.getButtonType(callbackQuery.getData())) {
+                multiselectCallbackDataModel = CallbackParser.parseCallbackData(
+                        update,
+                        telegramService.getYesNoButtons()
+                );
+            } else {
+                multiselectCallbackDataModel = CallbackParser.parseCallbackData(
+                        update,
+                        telegramService.getTagSelectionState()
+                                .get(callbackQuery.getMessage().getMessageId())
+                                .getTagsOnTheCurrentPage()
+                );
+            }
+
             ButtonActionType buttonActionType = multiselectCallbackDataModel.getButtonActionType();
             CallbackHandler callbackHandler = callbackHandlers.get(buttonActionType);
             if (callbackHandler == null) {
@@ -99,7 +114,9 @@ public class TelegramController {
                         "/stop - прекратить происк свежих вакансий и остановить рассылку;\n" +
                         "/settags - удалить старые и задать новые теги;\n" +
                         "/mytags - посмотреть заданные теги, по которым осуществляется поиск вакансий;\n" +
-                        "/removetags - удалить теги"
+                        "/removetags - удалить теги;\n" +
+                        "/setsalary - установить диапазон искомой заработной платы;\n" +
+                        "/hiddensalary - установить отображение вакансий только с заработной платой"
         );
     }
 }

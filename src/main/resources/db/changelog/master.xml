@@ -7,5 +7,6 @@
     <include file="db/changelog/20230423-initial.xml"/>
     <include file="db/changelog/20230530-user-info-change.xml"/>
     <include file="db/changelog/20240618-add-salary-in-userinfo.xml"/>
+    <include file="db/changelog/20240714-add-vacancy-table.xml"/>
 
 </databaseChangeLog>

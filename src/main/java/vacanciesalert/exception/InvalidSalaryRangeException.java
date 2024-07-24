@@ -6,5 +6,4 @@ public class InvalidSalaryRangeException extends Exception {
 
     public static class ToExceeded extends InvalidSalaryRangeException {
     }
-
 }
