@@ -1,9 +1,9 @@
 package vacanciesalert.hh.oauth;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,7 +22,6 @@ public class OauthController {
     private final TelegramService telegramService;
 
     @GetMapping("/redirect")
-    @Transactional
     public String processAuthorization(@RequestParam("code") String code, @RequestParam("state") String chatIdStr) {
         // TODO if state is null
         long chatId = Long.parseLong(chatIdStr);
@@ -35,7 +34,8 @@ public class OauthController {
                 // TODO отправить сообщение с доступными тэгами
                 telegramService.sendTextMessage(chatId, "Вы уже авторизованы. Продолжайте использовать наш телеграм-бот");
             }
-        } catch (Throwable throwable) {
+        } catch (Throwable ex) {
+            log.error("Could not auth", ex);
             return "failure-hh-oauth";
         }
         telegramService.sendTextMessage(chatId, "Поздравляю с успешной авторизацией! Последнее, " +

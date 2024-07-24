@@ -1,26 +1,18 @@
 package vacanciesalert.hh.search;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.cglib.core.internal.Function;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
-import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.test.web.client.match.MockRestRequestMatchers;
 import org.springframework.web.client.RestClient;
 import vacanciesalert.hh.api.ApiClient;
-import vacanciesalert.model.entity.Salary;
+import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.model.hhSearchResponse.Vacancy;
 import vacanciesalert.repository.VacancyRepository;
 
@@ -75,7 +67,7 @@ public class SearchVacanciesServiceTest {
                 1L,
                 "Bearer ",
                 "tag",
-                new Salary(200000, 250000, false),
+                new UserInfo.Salary(200000, 250000, false),
                 Duration.ofDays(36500)
         );
         assertFalse(newVacancies.isEmpty());
@@ -99,7 +91,7 @@ public class SearchVacanciesServiceTest {
                 2L,
                 "Bearer ",
                 "tag",
-                new Salary(230000, 230000, false),
+                new UserInfo.Salary(230000, 230000, false),
                 Duration.ofDays(36500)
         );
         assertTrue(newVacancies.isEmpty());
@@ -112,7 +104,7 @@ public class SearchVacanciesServiceTest {
                 3L,
                 "Bearer ",
                 "tag",
-                new Salary(100000, 150000, true),
+                new UserInfo.Salary(100000, 150000, true),
                 Duration.ofDays(36500)
         );
         assertTrue(newVacancies.stream().anyMatch(vacancy -> vacancy.getSalary() == null));
@@ -140,7 +132,7 @@ public class SearchVacanciesServiceTest {
                 4L,
                 "Bearer ",
                 "tag",
-                new Salary(200000, null, false),
+                new UserInfo.Salary(200000, null, false),
                 Duration.ofDays(36500)
         );
         assertFalse(newVacancies.isEmpty());
@@ -164,7 +156,7 @@ public class SearchVacanciesServiceTest {
                 5L,
                 "Bearer ",
                 "tag",
-                new Salary(200000, null, false),
+                new UserInfo.Salary(200000, null, false),
                 Duration.ofDays(36500)
         );
         assertFalse(newVacancies.isEmpty());
@@ -172,7 +164,7 @@ public class SearchVacanciesServiceTest {
                 5L,
                 "Bearer ",
                 "tag",
-                new Salary(200000, null, false),
+                new UserInfo.Salary(200000, null, false),
                 Duration.ofDays(36500)
         );
         assertTrue(newVacancies.isEmpty());
@@ -185,7 +177,7 @@ public class SearchVacanciesServiceTest {
                 6L,
                 "Bearer ",
                 "tag",
-                new Salary(200000, null, false),
+                new UserInfo.Salary(200000, null, false),
                 Duration.ofDays(36500)
         );
         assertFalse(newVacancies.isEmpty());
@@ -193,7 +185,7 @@ public class SearchVacanciesServiceTest {
                 7L,
                 "Bearer ",
                 "tag",
-                new Salary(200000, null, false),
+                new UserInfo.Salary(200000, null, false),
                 Duration.ofDays(36500)
         );
         assertFalse(newVacancies.isEmpty());

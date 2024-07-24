@@ -1,57 +1,70 @@
 package vacanciesalert.model.entity;
 
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Embedded;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.jetbrains.annotations.Nullable;
-import vacanciesalert.utils.EncryptionConverter;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Embedded;
+import vacanciesalert.hh.oauth.model.UserTokens;
 
 import java.time.Instant;
 import java.util.Set;
 
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
 @Accessors(chain = true)
-@Table(name = "user_info")
 @Getter
 @Builder
-public class UserInfo {
+public class UserInfo implements Persistable<Long> {
     @NotNull
     @Id
-    @Column(name = "chat_id")
+    @Column("chat_id")
     private Long chatId;
     @NotNull
-    @Convert(converter = EncryptionConverter.class)
-    @Column(name = "access_token")
-    private String accessToken;
+    @Column("tokens")
+    private UserTokens tokens;
     @NotNull
-    @Convert(converter = EncryptionConverter.class)
-    @Column(name = "refresh_token")
-    private String refreshToken;
-    @NotNull
-    @Column(name = "expired_at")
-    private Instant expiredAt;
-    @Nullable
-    @JdbcTypeCode(SqlTypes.JSON)
     private Set<String> tags;
     @Nullable
-    @Column(name = "search_vacancies_from")
+    @Column("search_vacancies_from")
     private Instant searchVacanciesFrom;
-    @Embedded
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Salary salary;
 
+    @Transient
+    private boolean isNew = false;
+
+    @Override
+    public Long getId() {
+        return chatId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Getter
+    public static class Salary {
+        @Nullable
+        @Column("salary_from")
+        private Integer from;
+        @Nullable
+        @Column("salary_to")
+        private Integer to;
+        @Column("show_hidden_salary_vacancies")
+        private boolean showHiddenSalaryVacancies;
+    }
 }
 

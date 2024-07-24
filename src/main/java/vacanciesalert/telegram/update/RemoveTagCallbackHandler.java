@@ -36,7 +36,7 @@ public class RemoveTagCallbackHandler implements CallbackHandler {
         Set<String> tagsToPreserve = tags.stream()
                 .filter(tag -> !selectedTags.contains(tag))
                 .collect(Collectors.toSet());
-        userInfoRepository.updateTags(chatId, tagsToPreserve);
+        userInfoRepository.updateTags(chatId, tagsToPreserve.toArray(String[]::new));
 
         String message = tagsToPreserve.isEmpty() ?
                 "/settags - установите теги, чтобы искать вакансии" :

@@ -1,7 +1,7 @@
 package vacanciesalert.telegram;
 
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -104,7 +104,7 @@ public class TelegramController {
                 log.error("Could not delete user info: chatId in telegram incoming update not found");
                 return;
             }
-            userInfoRepository.deleteUserById(id);
+            userInfoRepository.deleteUserByChatId(id);
             return;
         }
         telegramService.sendTextMessage(

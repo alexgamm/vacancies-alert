@@ -1,15 +1,14 @@
 package vacanciesalert.hh.oauth;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import vacanciesalert.hh.api.ApiClient;
 import vacanciesalert.hh.exception.ApiException;
 import vacanciesalert.hh.exception.ClientException;
 import vacanciesalert.hh.oauth.model.GetTokensResponse;
 import vacanciesalert.hh.oauth.model.UserTokens;
-import vacanciesalert.model.entity.Salary;
 import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.repository.UserInfoRepository;
 
@@ -36,10 +35,13 @@ public class AuthorizationService {
         // TODO handle exception with getting tokens
         UserInfo userInfo = UserInfo.builder()
                 .chatId(chatId)
-                .accessToken(response.getAccessToken())
-                .refreshToken(response.getRefreshToken())
-                .expiredAt(Instant.now().plusSeconds(response.getExpiresIn()))
-                .salary(Salary.builder().showHiddenSalaryVacancies(true).build())
+                .tokens(new UserTokens(
+                        response.getAccessToken(),
+                        response.getRefreshToken(),
+                        Instant.now().plusSeconds(response.getExpiresIn())
+                ))
+                .salary(UserInfo.Salary.builder().showHiddenSalaryVacancies(true).build())
+                .isNew(true)
                 .build();
         userInfoRepository.save(userInfo);
     }
@@ -52,12 +54,7 @@ public class AuthorizationService {
                 response.getRefreshToken(),
                 Instant.now().plusSeconds(response.getExpiresIn())
         );
-        userInfoRepository.updateTokensByChatId(
-                chatId,
-                tokens.accessToken(),
-                tokens.refreshToken(),
-                tokens.accessTokenExpiration()
-        );
+        userInfoRepository.updateTokens(chatId, tokens);
         return tokens;
     }
 

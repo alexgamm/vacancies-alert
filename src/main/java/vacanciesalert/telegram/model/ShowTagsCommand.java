@@ -31,7 +31,7 @@ public class ShowTagsCommand implements UserCommand {
         UserInfo userInfo = userInfoRepository.findById(chatId).orElse(null);
         if (userInfo == null) {
             //TODO add exception
-        } else if (userInfo.getAccessToken() == null && (userInfo.getTags() == null || userInfo.getTags().isEmpty())) {
+        } else if (userInfo.getTokens().accessToken() == null && (userInfo.getTags() == null || userInfo.getTags().isEmpty())) {
             telegramService.sendTextMessage(
                     chatId,
                     "На данный момент у вас нет установленных тегов.\n" +

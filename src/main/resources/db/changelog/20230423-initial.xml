@@ -7,32 +7,18 @@
 
     <changeSet id="1-user-info" author="AlexGamm">
         <createTable tableName="user_info">
-            <column name="chat_id" type="text">
+            <column name="chat_id" type="bigint">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="code" type="text">
+            <column name="tokens" type="text">
                 <constraints nullable="false"/>
             </column>
-            <column name="access_token" type="text">
-                <constraints nullable="false"/>
-            </column>
-            <column name="refresh_token" type="text">
-                <constraints nullable="false"/>
-            </column>
-            <column name="expired_at" type="timestamp">
-                <constraints nullable="false"/>
-            </column>
-            <column name="tags" type="jsonb"/>
+            <column name="tags" type="text[]" defaultValue="{}"/>
             <column name="search_vacancies_from" type="timestamp"/>
+            <column name="salary_from" type="integer"/>
+            <column name="salary_to" type="integer"/>
+            <column name="show_hidden_salary_vacancies" type="boolean" defaultValueBoolean="true"/>
         </createTable>
-    </changeSet>
-
-    <changeSet id="2-user-info-change-type-of-chat-id" author="AlexGamm">
-        <modifyDataType tableName="user_info" columnName="chat_id" newDataType="bigint"/>
-    </changeSet>
-
-    <changeSet id="2-user-info-remove-code-column" author="AlexGamm">
-        <dropColumn tableName="user_info" columnName="code"/>
     </changeSet>
 
 </databaseChangeLog>

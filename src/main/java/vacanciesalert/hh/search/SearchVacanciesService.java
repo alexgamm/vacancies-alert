@@ -1,13 +1,13 @@
 package vacanciesalert.hh.search;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import vacanciesalert.hh.api.ApiClient;
-import vacanciesalert.model.entity.Salary;
+import vacanciesalert.model.entity.UserInfo;
 import vacanciesalert.model.hhSearchResponse.Vacancies;
 import vacanciesalert.model.hhSearchResponse.Vacancy;
 import vacanciesalert.repository.VacancyRepository;
@@ -37,6 +37,7 @@ public class SearchVacanciesService {
     }
 
     private List<Vacancy> excludePreviouslySentVacanciesIds(long userId, List<Vacancy> excludeFrom) {
+        if (excludeFrom.isEmpty()) return excludeFrom;
         Map<Long, Vacancy> vacanciesByIds = excludeFrom.stream().collect(Collectors.toMap(
                 vacancy -> Long.parseLong(vacancy.getId()),
                 Function.identity()
@@ -77,7 +78,7 @@ public class SearchVacanciesService {
     }
 
     @Transactional
-    public List<Vacancy> getNewVacancies(long userId, String accessToken, String tag, Salary salary, Duration cutoff) {
+    public List<Vacancy> getNewVacancies(long userId, String accessToken, String tag, UserInfo.Salary salary, Duration cutoff) {
         boolean showHiddenSalaryVacancies = salary.isShowHiddenSalaryVacancies();
         List<Vacancy> foundVacancies = ofNullable(apiClient.getVacancies(accessToken, tag, !showHiddenSalaryVacancies))
                 .map(Vacancies::getItems)
@@ -94,12 +95,11 @@ public class SearchVacanciesService {
                     salary.getTo()
             );
         }
-        vacancyRepository.saveAll(
+        vacancyRepository.insert(
+                userId,
                 newVacancies.stream()
                         .map(vacancy -> Long.parseLong(vacancy.getId()))
-                        .distinct()
-                        .map(vacancyId -> new vacanciesalert.model.entity.Vacancy(userId, vacancyId))
-                        .toList()
+                        .collect(Collectors.toSet())
         );
         return newVacancies;
     }

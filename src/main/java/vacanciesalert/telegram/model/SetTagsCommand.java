@@ -30,12 +30,12 @@ public class SetTagsCommand implements UserCommand {
         Long chatId = update.getMessage().getChatId();
         if (inputtingUsers.contains(update.getMessage().getChatId())) {
             Set<String> tags = TagsParser.parse(update.getMessage().getText());
-            userInfoRepository.updateTags(chatId, tags);
+            userInfoRepository.updateTags(chatId, tags.toArray(String[]::new));
             userInfoRepository.updateSearchVacanciesFrom(chatId, Instant.now());
             String tagsText = String.join(", ", tags);
             String messageTemplate = """
-                    Новые теги успешно сохранены: 
-                    {0} 
+                    Новые теги успешно сохранены:
+                    {0}
                     Как только на hh появится новая, подходящая вам вакансия, она сразу же отобразится в этом чате
                     """;
             telegramService.sendTextMessage(chatId, MessageFormat.format(messageTemplate, tagsText));
