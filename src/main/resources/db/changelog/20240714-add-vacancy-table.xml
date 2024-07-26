@@ -5,8 +5,8 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
           http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
 
-    <changeSet id="1-vacancy" author="AlexGamm">
-        <createTable tableName="vacancy">
+    <changeSet id="1-sent-vacancy" author="AlexGamm">
+        <createTable tableName="sent_vacancy">
             <column name="vacancy_id" type="bigint">
                 <constraints nullable="false"/>
             </column>
@@ -14,8 +14,8 @@
                 <constraints nullable="false"/>
             </column>
         </createTable>
-        <addForeignKeyConstraint constraintName="vacancy_user_fk"
-                                 baseTableName="vacancy" baseColumnNames="user_id"
+        <addForeignKeyConstraint constraintName="sent_vacancy_user_fk"
+                                 baseTableName="sent_vacancy" baseColumnNames="user_id"
                                  referencedTableName="user_info" referencedColumnNames="chat_id"
                                  onDelete="CASCADE" onUpdate="CASCADE"/>
     </changeSet>

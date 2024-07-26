@@ -1,4 +1,4 @@
-package vacanciesalert.model.hhSearchResponse;
+package vacanciesalert.model.hh.search;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,6 +8,6 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-public class Vacancies {
+public class SearchResponse {
     private List<Vacancy> items;
 }

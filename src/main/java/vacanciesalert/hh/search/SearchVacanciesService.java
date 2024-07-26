@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vacanciesalert.hh.api.ApiClient;
 import vacanciesalert.model.entity.UserInfo;
-import vacanciesalert.model.hhSearchResponse.Vacancies;
-import vacanciesalert.model.hhSearchResponse.Vacancy;
-import vacanciesalert.repository.VacancyRepository;
+import vacanciesalert.model.hh.search.SearchResponse;
+import vacanciesalert.model.hh.search.Vacancy;
+import vacanciesalert.repository.SentVacancyRepository;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -28,7 +28,7 @@ import static java.util.Optional.ofNullable;
 @Slf4j
 public class SearchVacanciesService {
     private final ApiClient apiClient;
-    private final VacancyRepository vacancyRepository;
+    private final SentVacancyRepository sentVacancyRepository;
 
     private List<Vacancy> filterOnlyNewVacancies(List<Vacancy> vacancies, Duration cutoff) {
         return vacancies.stream()
@@ -42,8 +42,9 @@ public class SearchVacanciesService {
                 vacancy -> Long.parseLong(vacancy.getId()),
                 Function.identity()
         ));
-        Set<Long> previouslySentVacanciesIds = vacancyRepository.findIds(userId, vacanciesByIds.keySet());
-        vacanciesByIds.keySet().removeAll(previouslySentVacanciesIds);
+        Set<Long> previouslySentVacanciesIds = sentVacancyRepository.findAbsentVacancyIds(userId, vacanciesByIds.keySet());
+        log.info("New vacancies ids {}", previouslySentVacanciesIds);
+        vacanciesByIds.keySet().retainAll(previouslySentVacanciesIds);
         return vacanciesByIds.values().stream().toList();
     }
 
@@ -81,7 +82,7 @@ public class SearchVacanciesService {
     public List<Vacancy> getNewVacancies(long userId, String accessToken, String tag, UserInfo.Salary salary, Duration cutoff) {
         boolean showHiddenSalaryVacancies = salary.isShowHiddenSalaryVacancies();
         List<Vacancy> foundVacancies = ofNullable(apiClient.getVacancies(accessToken, tag, !showHiddenSalaryVacancies))
-                .map(Vacancies::getItems)
+                .map(SearchResponse::getItems)
                 .orElse(Collections.emptyList());
         List<Vacancy> newVacancies = excludePreviouslySentVacanciesIds(
                 userId,
@@ -95,7 +96,7 @@ public class SearchVacanciesService {
                     salary.getTo()
             );
         }
-        vacancyRepository.insert(
+        sentVacancyRepository.insert(
                 userId,
                 newVacancies.stream()
                         .map(vacancy -> Long.parseLong(vacancy.getId()))

@@ -15,7 +15,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import vacanciesalert.hh.exception.ApiException;
 import vacanciesalert.hh.exception.ClientException;
 import vacanciesalert.hh.oauth.model.GetTokensResponse;
-import vacanciesalert.model.hhSearchResponse.Vacancies;
+import vacanciesalert.model.hh.search.SearchResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -62,7 +62,7 @@ public class ApiClient {
     }
 
     // TODO handle error
-    public Vacancies getVacancies(String accessToken, String text, boolean onlyWithSalary) {
+    public SearchResponse getVacancies(String accessToken, String text, boolean onlyWithSalary) {
         return hhRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/vacancies")
@@ -73,7 +73,7 @@ public class ApiClient {
                 )
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .retrieve()
-                .body(Vacancies.class);
+                .body(SearchResponse.class);
     }
 
     @NotNull

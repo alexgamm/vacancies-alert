@@ -13,8 +13,8 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import vacanciesalert.hh.api.ApiClient;
 import vacanciesalert.model.entity.UserInfo;
-import vacanciesalert.model.hhSearchResponse.Vacancy;
-import vacanciesalert.repository.VacancyRepository;
+import vacanciesalert.model.hh.search.Vacancy;
+import vacanciesalert.repository.SentVacancyRepository;
 
 import java.time.Duration;
 import java.util.LinkedList;
@@ -36,8 +36,8 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-@SpringBootTest(classes = {SearchVacanciesService.class, ApiClient.class, SearchVacanciesServiceTest.Config.class})
-public class SearchVacanciesServiceTest {
+@SpringBootTest(classes = {SearchVacanciesService.class, ApiClient.class, SearchSearchResponseServiceTest.Config.class})
+public class SearchSearchResponseServiceTest {
 
     @Autowired
     private SearchVacanciesService searchVacanciesService;
@@ -213,21 +213,21 @@ public class SearchVacanciesServiceTest {
         }
 
         @Bean
-        VacancyRepository vacancyRepository() {
-            VacancyRepository vacancyRepositoryMock = mock(VacancyRepository.class);
+        SentVacancyRepository vacancyRepository() {
+            SentVacancyRepository sentVacancyRepositoryMock = mock(SentVacancyRepository.class);
             List<vacanciesalert.model.entity.Vacancy> vacancies = new LinkedList<>();
-            when(vacancyRepositoryMock.saveAll(any())).thenAnswer(invocation -> {
+            when(sentVacancyRepositoryMock.saveAll(any())).thenAnswer(invocation -> {
                 vacancies.addAll(invocation.getArgument(0));
                 return null;
             });
-            when(vacancyRepositoryMock.findIds(anyLong(), any())).thenAnswer(
+            when(sentVacancyRepositoryMock.findAbsentVacancyIds(anyLong(), any())).thenAnswer(
                     invocation -> vacancies.stream()
                             .filter(vacancy -> vacancy.getUserId() == invocation.getArgument(0, Long.class))
                             .map(vacanciesalert.model.entity.Vacancy::getVacancyId)
                             .filter(invocation.getArgument(1, Set.class)::contains)
                             .collect(Collectors.toSet())
             );
-            return vacancyRepositoryMock;
+            return sentVacancyRepositoryMock;
         }
     }
 }

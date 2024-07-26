@@ -9,7 +9,7 @@ import vacanciesalert.hh.exception.ApiException;
 import vacanciesalert.hh.exception.ClientException;
 import vacanciesalert.hh.oauth.AuthorizationService;
 import vacanciesalert.model.entity.UserInfo;
-import vacanciesalert.model.hhSearchResponse.Vacancy;
+import vacanciesalert.model.hh.search.Vacancy;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
 

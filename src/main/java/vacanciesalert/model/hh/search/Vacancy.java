@@ -1,4 +1,4 @@
-package vacanciesalert.model.hhSearchResponse;
+package vacanciesalert.model.hh.search;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;

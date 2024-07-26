@@ -1,4 +1,4 @@
-package vacanciesalert.model.hhSearchResponse;
+package vacanciesalert.model.hh.search;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -14,7 +14,7 @@ import java.util.List;
 @Repository
 public interface UserInfoRepository extends CrudRepository<UserInfo, Long> {
 
-    @Query(value = "SELECT * FROM user_info array_length(tags, 1) > 0")
+    @Query(value = "SELECT * FROM user_info WHERE array_length(tags, 1) > 0")
     List<UserInfo> findUsersWithTags();
 
     @Modifying
