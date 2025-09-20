@@ -58,11 +58,17 @@ public class AuthorizationService {
         return tokens;
     }
 
-//    public String getAccessToken(UserInfo user) {
-//        if (user.getExpiredAt() != null && Instant.now().isBefore(user.getExpiredAt())) {
-//            return user.getAccessToken();
-//        }
-//        return refreshTokens(user.getChatId(), user.getRefreshToken()).accessToken();
-//    }
+    public String getActualAccessToken(UserInfo user) throws ApiException, ClientException {
+        String accessToken;
+        if (user.getTokens().accessTokenExpiration() != null && Instant.now().isBefore(user.getTokens().accessTokenExpiration())) {
+            accessToken = user.getTokens().accessToken();
+        } else {
+            accessToken = refreshTokens(
+                    user.getChatId(),
+                    user.getTokens().refreshToken()
+            ).accessToken();
+        }
+        return accessToken;
+    }
 
 }

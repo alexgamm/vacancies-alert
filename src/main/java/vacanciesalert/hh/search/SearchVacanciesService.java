@@ -8,8 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vacanciesalert.hh.api.ApiClient;
 import vacanciesalert.model.entity.UserInfo;
-import vacanciesalert.model.hh.search.SearchResponse;
-import vacanciesalert.model.hh.search.Vacancy;
+import vacanciesalert.ext.hh.search.SearchResponse;
+import vacanciesalert.ext.hh.search.Vacancy;
 import vacanciesalert.repository.SentVacancyRepository;
 
 import java.time.Duration;

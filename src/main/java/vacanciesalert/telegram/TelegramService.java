@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.botapimethods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
@@ -141,6 +142,7 @@ public class TelegramService {
         SendMessage message = SendMessage.builder()
                 .chatId(chatId)
                 .text(messageText)
+                .parseMode(ParseMode.HTML)
                 .build();
         execute(message);
     }
@@ -187,6 +189,24 @@ public class TelegramService {
                         .build()
         );
     }
+
+//    public void sendVacancyMessage(Long chatId, String negotiationUrl, String vacancyText) {
+//        InlineKeyboardButton button = InlineKeyboardButton.builder()
+//                .text("Откликнуться")
+//                .url(negotiationUrl).build();
+//        List<InlineKeyboardRow> rows = new ArrayList<>();
+//        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+//                .keyboard(InlineKeyboardButton.builder().)
+//                .build();
+//        SendMessage message = SendMessage.builder()
+//                .chatId(chatId)
+//                .text(vacancyText)
+//                .parseMode(ParseMode.HTML)
+//                .replyMarkup(markup)
+//                .build();
+//        execute(message);
+//
+//    }
 
     private InlineKeyboardButton createButton(ButtonActionType buttonActionType, String buttonText) {
         return InlineKeyboardButton.builder()

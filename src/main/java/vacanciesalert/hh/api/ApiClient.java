@@ -15,7 +15,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import vacanciesalert.hh.exception.ApiException;
 import vacanciesalert.hh.exception.ClientException;
 import vacanciesalert.hh.oauth.model.GetTokensResponse;
-import vacanciesalert.model.hh.search.SearchResponse;
+import vacanciesalert.ext.hh.search.SearchResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;

@@ -13,7 +13,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import vacanciesalert.hh.api.ApiClient;
 import vacanciesalert.model.entity.UserInfo;
-import vacanciesalert.model.hh.search.Vacancy;
+import vacanciesalert.ext.hh.search.Vacancy;
 import vacanciesalert.repository.SentVacancyRepository;
 
 import java.time.Duration;

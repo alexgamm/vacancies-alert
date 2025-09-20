@@ -5,11 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import vacanciesalert.ext.VacancyExtKt;
+import vacanciesalert.ext.hh.search.Vacancy;
 import vacanciesalert.hh.exception.ApiException;
 import vacanciesalert.hh.exception.ClientException;
 import vacanciesalert.hh.oauth.AuthorizationService;
 import vacanciesalert.model.entity.UserInfo;
-import vacanciesalert.model.hh.search.Vacancy;
 import vacanciesalert.repository.UserInfoRepository;
 import vacanciesalert.telegram.TelegramService;
 
@@ -50,19 +51,16 @@ public class SearchSchedulerService {
 
     private void notifyUserAboutFreshVacancies(UserInfo user) {
         String accessToken;
-        if (user.getTokens().accessTokenExpiration() != null && Instant.now().isBefore(user.getTokens().accessTokenExpiration())) {
-            accessToken = user.getTokens().accessToken();
-        } else {
-            try {
-                accessToken = authorizationService.refreshTokens(
-                        user.getChatId(),
-                        user.getTokens().refreshToken()
-                ).accessToken();
-            } catch (ApiException | ClientException e) {
-                log.error("Api error when exchanging refresh to access token for user {}", user.getChatId(), e);
-                return;
-            }
+        try {
+            accessToken = authorizationService.getActualAccessToken(user);
+        } catch (ApiException | ClientException e) {
+            log.error("Api error when exchanging refresh to access token for user {}", user.getChatId(), e);
+            return;
         }
+        sendNewVacancies(user, accessToken);
+    }
+
+    private void sendNewVacancies(UserInfo user, String accessToken) {
         for (String tag : user.getTags()) {
             UserInfo.Salary salary = user.getSalary();
             List<Vacancy> newVacancies = searchVacanciesService.getNewVacancies(
@@ -76,28 +74,11 @@ public class SearchSchedulerService {
             if (newVacancies.isEmpty()) {
                 continue;
             }
-            String header = "Обнаружены новые вакансии по запросу: " + tag + "\n";
-            String vacanciesText = getVacanciesMessageText(newVacancies);
-            log.info("Message in tg: {}", header + vacanciesText);
-            telegramService.sendTextMessage(user.getChatId(), header + vacanciesText);
-
-        }
-    }
-
-    private static String getVacanciesMessageText(List<Vacancy> vacancies) {
-        String vacanciesText = "";
-        for (Vacancy vacancy : vacancies) {
-            String salary;
-            if (vacancy.getSalary() == null) {
-                salary = "Заработная плата не указана";
-            } else {
-                String from = vacancy.getSalary().getFrom() == null ? "от 0" : "от " + vacancy.getSalary().getFrom();
-                String to = vacancy.getSalary().getTo() == null ? "" : " до " + vacancy.getSalary().getTo();
-                salary = from + to + " " + vacancy.getSalary().getCurrency();
+            for (Vacancy vacancy : newVacancies) {
+                String vacancyText = VacancyExtKt.format(vacancy);
+                log.info("Message in tg: {}", "Обнаружена новая вакансия по запросу: " + tag + vacancyText);
+                telegramService.sendTextMessage(user.getChatId(), vacancyText);
             }
-            vacanciesText += "\n" + vacancy.getName() + ", " + vacancy.getArea().getName() + "\n" + salary + "\n" + vacancy.getAlternateUrl() + "\n";
         }
-        return vacanciesText;
     }
-
 }
